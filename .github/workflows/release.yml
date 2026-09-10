@@ -1,0 +1,75 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  # Manual runs build and validate all targets but do not publish (no tag).
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # CGO (DuckDB) can't cross-compile, so each target uses a native runner.
+          # Apple stopped selling Intel Macs in 2023; Apple Silicon can run x86-64
+          # via Rosetta, so a darwin/arm64 build covers Mac users. Re-add a
+          # macos-13 darwin/amd64 entry if a coworker actually needs an Intel build.
+          - { os: macos-14, goos: darwin, goarch: arm64 }
+          - { os: ubuntu-latest, goos: linux, goarch: amd64 }
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # The Go binary embeds web/dist via //go:embed, so build the frontend first.
+      - name: Build frontend
+        working-directory: web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Build binary
+        env:
+          CGO_ENABLED: "1"
+        run: go build -ldflags="-s -w -X main.version=${{ github.ref_name }}" -o workload-analyzer .
+
+      - name: Package tarball + checksum
+        run: |
+          name="workload-analyzer_${{ github.ref_name }}_${{ matrix.goos }}_${{ matrix.goarch }}"
+          mkdir -p dist
+          tar -czf "dist/${name}.tar.gz" workload-analyzer
+          ( cd dist && shasum -a 256 "${name}.tar.gz" > "${name}.tar.gz.sha256" )
+          cat "dist/${name}.tar.gz.sha256"
+
+      - name: Attach to release
+        if: github.ref_type == 'tag'
+        uses: softprops/action-gh-release@v3
+        with:
+          files: |
+            dist/*.tar.gz
+            dist/*.sha256
+          generate_release_notes: true
+          body: |
+            Prebuilt `workload-analyzer` binaries. Download the tarball for your platform,
+            verify the checksum, then run `./workload-analyzer <export>.zip`.
+
+            macOS binaries are unsigned — on first run:
+            `xattr -d com.apple.quarantine ./workload-analyzer`

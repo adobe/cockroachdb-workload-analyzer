@@ -1,0 +1,16 @@
+CockroachDB Workload Analyzer
+Copyright 2026 Adobe. All rights reserved.
+
+This product is licensed to you under the Apache License, Version 2.0 (the "License").
+You may obtain a copy of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+This product includes software developed at Adobe (https://www.adobe.com/).
+
+This product includes diagnostic queries adapted from Cockroach Labs'
+cockroachdb-skills (https://github.com/cockroachlabs/cockroachdb-skills),
+licensed under the Apache License, Version 2.0.
+
+This product reads workload exports produced by, and was inspired by, tooling
+from Cockroach Labs (https://www.cockroachlabs.com/): workload-exporter
+(https://github.com/cockroachlabs/workload-exporter) and ziplook
+(https://github.com/cockroachlabs/ziplook).

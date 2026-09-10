@@ -1,0 +1,11 @@
+workload-analyzer
+web/node_modules
+web/dist
+*.zip
+tmp/
+.claude/
+.scout/
+
+# Local analysis scratch — may contain production data; never commit
+*investigation*.md
+scripts/

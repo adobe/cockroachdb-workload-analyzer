@@ -1,0 +1,52 @@
+// Copyright 2026 Adobe. All rights reserved.
+// This file is licensed to you under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License. You may obtain a copy
+// of the License at http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software distributed under
+// the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+// OF ANY KIND, either express or implied. See the License for the specific language
+// governing permissions and limitations under the License.
+
+import { useEffect, useRef, useState } from 'react'
+import { fetchStatus } from '../api'
+import type { StatusResult } from '../api'
+
+const POLL_INTERVAL_MS = 500
+
+export function useStatus() {
+  const [status, setStatus] = useState<StatusResult>({
+    state: 'loading',
+    progress: 0,
+    tables: [],
+  })
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  useEffect(() => {
+    let cancelled = false
+
+    async function poll() {
+      try {
+        const s = await fetchStatus()
+        if (!cancelled) {
+          setStatus(s)
+          if (s.state !== 'ready') {
+            timerRef.current = setTimeout(poll, POLL_INTERVAL_MS)
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          timerRef.current = setTimeout(poll, POLL_INTERVAL_MS * 4)
+        }
+      }
+    }
+
+    poll()
+    return () => {
+      cancelled = true
+      clearTimeout(timerRef.current)
+    }
+  }, [])
+
+  return status
+}
