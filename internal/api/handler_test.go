@@ -11,12 +11,16 @@
 package api_test
 
 import (
+	"context"
 	"database/sql"
+	"database/sql/driver"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/adobe/cockroachdb-workload-analyzer/internal/api"
 	"github.com/adobe/cockroachdb-workload-analyzer/internal/catalog"
@@ -405,5 +409,157 @@ func TestHandleRun_WithQueryID_UnknownID(t *testing.T) {
 	json.Unmarshal(rr.Body.Bytes(), &result)
 	if result["error"] == nil {
 		t.Error("expected error field for unknown query_id")
+	}
+}
+
+// A failure while iterating the result set must surface as an error, not as
+// a truncated result that looks like success.
+func TestHandleRun_MidStreamRowsErrorIsReported(t *testing.T) {
+	spec := &fakeSpec{
+		cols:    []string{"val"},
+		rows:    [][]driver.Value{{int64(1)}},
+		nextErr: errors.New("boom: lost the result stream"),
+	}
+	db := openFake(t, spec)
+	status := loader.NewLoadStatus()
+	status.SetReady()
+	h := api.New(db, status, catalog.All(), &loader.Meta{}, loader.Schemas{})
+	mux := http.NewServeMux()
+	h.Register(mux)
+
+	req := httptest.NewRequest("POST", "/api/run", strings.NewReader(`{"sql":"SELECT val FROM t"}`))
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	var result map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &result); err != nil {
+		t.Fatalf("body not JSON: %v", err)
+	}
+	errMsg, _ := result["error"].(string)
+	if !strings.Contains(errMsg, "boom") {
+		t.Fatalf("expected the mid-stream error to be reported, got error=%q rows=%v", errMsg, result["rows"])
+	}
+}
+
+func TestHandleDatabases_MidStreamRowsErrorIsReported(t *testing.T) {
+	spec := &fakeSpec{
+		cols:    []string{"db"},
+		rows:    [][]driver.Value{{"alpha"}},
+		nextErr: errors.New("boom: lost the result stream"),
+	}
+	db := openFake(t, spec)
+	h := api.New(db, loader.NewLoadStatus(), catalog.All(), &loader.Meta{}, loader.Schemas{})
+	mux := http.NewServeMux()
+	h.Register(mux)
+
+	req := httptest.NewRequest("GET", "/api/databases", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("status = %d, want 500 (body %s)", rr.Code, rr.Body.String())
+	}
+	// The UI does res.json() unconditionally and expects a string array, so
+	// the error body must still be an array — just never a partial one.
+	var dbs []string
+	if err := json.Unmarshal(rr.Body.Bytes(), &dbs); err != nil {
+		t.Fatalf("body not a JSON array: %v (%s)", err, rr.Body.String())
+	}
+	if len(dbs) != 0 {
+		t.Errorf("expected no databases on a failed read, got %v", dbs)
+	}
+}
+
+type ctxKey struct{}
+
+// Queries must run under the request context so that a client going away
+// cancels the query (the DuckDB driver interrupts on ctx.Done) instead of
+// tying up the single connection until it finishes.
+func TestQueries_RunUnderRequestContext(t *testing.T) {
+	cases := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+		cols   []string
+	}{
+		{"run", "POST", "/api/run", `{"sql":"SELECT 1"}`, []string{"val"}},
+		{"databases", "GET", "/api/databases", "", []string{"db"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			spec := &fakeSpec{cols: tc.cols}
+			db := openFake(t, spec)
+			status := loader.NewLoadStatus()
+			status.SetReady()
+			h := api.New(db, status, catalog.All(), &loader.Meta{}, loader.Schemas{})
+			mux := http.NewServeMux()
+			h.Register(mux)
+
+			ctx := context.WithValue(context.Background(), ctxKey{}, "marker")
+			req := httptest.NewRequest(tc.method, tc.path, strings.NewReader(tc.body)).WithContext(ctx)
+			rr := httptest.NewRecorder()
+			mux.ServeHTTP(rr, req)
+
+			got := spec.queryCtx()
+			if got == nil {
+				t.Fatal("driver never saw a QueryContext call")
+			}
+			if got.Value(ctxKey{}) != "marker" {
+				t.Fatalf("query ran under a context other than the request's")
+			}
+		})
+	}
+}
+
+// End-to-end with the real driver: cancelling the request context must
+// interrupt a long-running query and free the (single) connection for the
+// next request.
+func TestHandleRun_CanceledRequestInterruptsQuery(t *testing.T) {
+	db := testDB(t)
+	status := loader.NewLoadStatus()
+	status.SetReady()
+	h := api.New(db, status, catalog.All(), &loader.Meta{}, loader.Schemas{})
+	mux := http.NewServeMux()
+	h.Register(mux)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// 10^10 joined rows: far longer than the test timeout below.
+	body := strings.NewReader(`{"sql":"SELECT sum(a.range * b.range) FROM range(100000) a, range(100000) b"}`)
+	req := httptest.NewRequest("POST", "/api/run", body).WithContext(ctx)
+	rr := httptest.NewRecorder()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		mux.ServeHTTP(rr, req)
+	}()
+	// Let the query get going so we exercise interruption of a running
+	// statement, not just the pre-flight ctx check. Cancelling earlier would
+	// still pass; cancelling is never observed at all without the fix.
+	time.Sleep(100 * time.Millisecond)
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		t.Fatal("handler still running 10s after the request was canceled: query was not interrupted")
+	}
+
+	var result map[string]any
+	if err := json.Unmarshal(rr.Body.Bytes(), &result); err != nil {
+		t.Fatalf("response is not JSON: %v (body %q)", err, rr.Body.String())
+	}
+	if result["error"] == nil {
+		t.Errorf("expected an error for the canceled query, got %v", result)
+	}
+
+	// The one connection must be free again for the next request.
+	ctx2, cancel2 := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel2()
+	var n int
+	if err := db.QueryRowContext(ctx2, "SELECT 1").Scan(&n); err != nil {
+		t.Fatalf("connection not usable after cancel: %v", err)
 	}
 }

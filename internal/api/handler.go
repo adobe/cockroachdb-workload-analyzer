@@ -11,6 +11,7 @@
 package api
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"fmt"
@@ -79,29 +80,46 @@ func (h *Handler) handleQueries(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleDatabases(w http.ResponseWriter, r *http.Request) {
-	rows, err := h.db.Query(`
+	dbs, err := h.listDatabases(r.Context())
+	if err != nil {
+		// Never return a partial list as if it were complete. The UI parses
+		// the body as a string array unconditionally, so keep it an array.
+		log.Printf("handleDatabases: %v", err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusInternalServerError)
+		writeJSON(w, []string{})
+		return
+	}
+	writeJSON(w, dbs)
+}
+
+// listDatabases returns the distinct database names in stmt_stats. It runs
+// under ctx so a client that goes away releases the single DuckDB connection
+// instead of holding it until the query finishes.
+func (h *Handler) listDatabases(ctx context.Context) ([]string, error) {
+	rows, err := h.db.QueryContext(ctx, `
 		SELECT DISTINCT database AS db
 		FROM stmt_stats
 		WHERE database IS NOT NULL AND database <> ''
 		ORDER BY db
 	`)
 	if err != nil {
-		log.Printf("handleDatabases: query failed: %v", err)
-		writeJSON(w, []string{})
-		return
+		return nil, fmt.Errorf("query failed: %w", err)
 	}
 	defer rows.Close()
-	var dbs []string
+	// Non-nil so an empty result marshals as [] rather than null.
+	dbs := []string{}
 	for rows.Next() {
 		var db string
-		if err := rows.Scan(&db); err == nil {
-			dbs = append(dbs, db)
+		if err := rows.Scan(&db); err != nil {
+			return nil, fmt.Errorf("scan failed: %w", err)
 		}
+		dbs = append(dbs, db)
 	}
-	if dbs == nil {
-		dbs = []string{}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("reading rows: %w", err)
 	}
-	writeJSON(w, dbs)
+	return dbs, nil
 }
 
 type runRequest struct {
@@ -160,7 +178,12 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 	}
 
 	start := time.Now()
-	rows, err := h.db.Query(finalSQL, args...)
+	// Run under the request context: go-duckdb interrupts the statement when
+	// the context is cancelled, so a client that disconnects frees the single
+	// DuckDB connection instead of blocking every later request behind a
+	// runaway query. (Server shutdown does not cancel request contexts; see
+	// main.go.)
+	rows, err := h.db.QueryContext(r.Context(), finalSQL, args...)
 	if err != nil {
 		writeJSON(w, runResponse{Error: friendlyRunError(err, h.status)})
 		return
@@ -189,6 +212,12 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 		row := make([]any, len(vals))
 		copy(row, vals)
 		result = append(result, row)
+	}
+	// Next returns false on both end-of-rows and failure; without this check
+	// a mid-stream error would be reported as a shorter, successful result.
+	if err := rows.Err(); err != nil {
+		writeJSON(w, runResponse{Error: friendlyRunError(err, h.status)})
+		return
 	}
 
 	writeJSON(w, runResponse{
