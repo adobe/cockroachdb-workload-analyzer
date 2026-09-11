@@ -20,6 +20,12 @@ export interface StatusResult {
   tables: TableEntry[]
 }
 
+// TimeRange is the window the export covers, as RFC 3339 timestamps.
+export interface TimeRange {
+  start: string
+  end: string
+}
+
 export interface MetaResult {
   version: string
   timestamp: string
@@ -27,6 +33,8 @@ export interface MetaResult {
   cluster_id: string
   organization: string
   virtual_cluster: boolean
+  // Absent when the export shipped no metadata.json.
+  time_range?: TimeRange
 }
 
 export interface QueryDef {

@@ -60,3 +60,41 @@ export function formatCell(column: string, value: unknown): string {
   if (col.endsWith('_bytes') || col.includes('bytes')) return formatBytes(value)
   return String(value)
 }
+
+// formatTimeRange renders an export window (two RFC 3339 timestamps) in UTC
+// together with its length, e.g. "2026-05-28 19:00 – 2026-05-29 18:48 UTC (23h 48m)".
+// UTC is deliberate: the export's own timestamps are UTC, and latency numbers
+// are read against the window, not the viewer's local clock. Timestamps that
+// do not parse are shown verbatim.
+export function formatTimeRange(start: string, end: string): string {
+  const from = new Date(start)
+  const to = new Date(end)
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) return `${start} – ${end}`
+  const fromDay = utcDay(from)
+  const toDay = utcDay(to)
+  const toLabel = fromDay === toDay ? utcClock(to) : `${toDay} ${utcClock(to)}`
+  return `${fromDay} ${utcClock(from)} – ${toLabel} UTC (${formatWindow(to.getTime() - from.getTime())})`
+}
+
+function utcDay(d: Date): string {
+  return d.toISOString().slice(0, 10)
+}
+
+function utcClock(d: Date): string {
+  return d.toISOString().slice(11, 16)
+}
+
+// formatWindow renders a span in milliseconds as whole days, hours and minutes,
+// dropping minutes once the span reaches a day.
+function formatWindow(ms: number): string {
+  const totalMinutes = Math.floor(ms / 60_000)
+  if (totalMinutes < 1) return '<1m'
+  const days = Math.floor(totalMinutes / 1440)
+  const hours = Math.floor((totalMinutes % 1440) / 60)
+  const minutes = totalMinutes % 60
+  const parts: string[] = []
+  if (days > 0) parts.push(`${days}d`)
+  if (hours > 0) parts.push(`${hours}h`)
+  if (minutes > 0 && days === 0) parts.push(`${minutes}m`)
+  return parts.join(' ')
+}

@@ -9,7 +9,7 @@
 // governing permissions and limitations under the License.
 
 import { describe, expect, it } from 'vitest'
-import { formatCell, formatDurationSec, formatBytes } from './format'
+import { formatCell, formatDurationSec, formatBytes, formatTimeRange } from './format'
 
 describe('formatDurationSec', () => {
   it('renders sub-millisecond as µs', () => {
@@ -68,5 +68,36 @@ describe('formatCell', () => {
   })
   it('does not coerce a non-numeric string in a unit column', () => {
     expect(formatCell('mean_run_lat_sec', 'n/a')).toBe('n/a')
+  })
+})
+
+describe('formatTimeRange', () => {
+  it('renders a multi-day window in UTC with its length', () => {
+    expect(formatTimeRange('2026-05-28T19:00:00Z', '2026-05-29T18:48:00Z')).toBe(
+      '2026-05-28 19:00 – 2026-05-29 18:48 UTC (23h 48m)',
+    )
+  })
+  it('collapses the date when both ends fall on the same UTC day', () => {
+    expect(formatTimeRange('2026-05-28T19:00:00Z', '2026-05-28T21:00:00Z')).toBe(
+      '2026-05-28 19:00 – 21:00 UTC (2h)',
+    )
+  })
+  it('normalizes zoned timestamps to UTC', () => {
+    expect(formatTimeRange('2026-05-28T21:00:00+02:00', '2026-05-29T00:00:00+02:00')).toBe(
+      '2026-05-28 19:00 – 22:00 UTC (3h)',
+    )
+  })
+  it('reports windows of several days in days and hours', () => {
+    expect(formatTimeRange('2026-05-01T00:00:00Z', '2026-05-04T06:00:00Z')).toBe(
+      '2026-05-01 00:00 – 2026-05-04 06:00 UTC (3d 6h)',
+    )
+  })
+  it('reports a window shorter than a minute as such', () => {
+    expect(formatTimeRange('2026-05-01T00:00:00Z', '2026-05-01T00:00:30Z')).toBe(
+      '2026-05-01 00:00 – 00:00 UTC (<1m)',
+    )
+  })
+  it('falls back to the raw strings when a timestamp does not parse', () => {
+    expect(formatTimeRange('yesterday', 'now')).toBe('yesterday – now')
   })
 })

@@ -563,3 +563,39 @@ func TestHandleRun_CanceledRequestInterruptsQuery(t *testing.T) {
 		t.Fatalf("connection not usable after cancel: %v", err)
 	}
 }
+
+// The export window is the most useful context when reading latency numbers,
+// so /api/meta must surface it (the README documents it as part of the
+// response). Field names follow the snake_case used by the rest of the body.
+func TestHandleMeta_IncludesTimeRange(t *testing.T) {
+	meta := &loader.Meta{
+		ClusterVersion: "CockroachDB CCL v26.2.1",
+		TimeRange:      loader.TimeRange{Start: "2026-05-28T19:00:00Z", End: "2026-05-29T18:48:00Z"},
+	}
+	h := api.New(testDB(t), loader.NewLoadStatus(), catalog.All(), meta, loader.Schemas{})
+	mux := http.NewServeMux()
+	h.Register(mux)
+
+	req := httptest.NewRequest("GET", "/api/meta", nil)
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200", rr.Code)
+	}
+	var body struct {
+		TimeRange *struct {
+			Start string `json:"start"`
+			End   string `json:"end"`
+		} `json:"time_range"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("body not JSON: %v", err)
+	}
+	if body.TimeRange == nil {
+		t.Fatalf("time_range missing from body: %s", rr.Body.String())
+	}
+	if body.TimeRange.Start != "2026-05-28T19:00:00Z" || body.TimeRange.End != "2026-05-29T18:48:00Z" {
+		t.Errorf("time_range = %+v, want the export window", *body.TimeRange)
+	}
+}

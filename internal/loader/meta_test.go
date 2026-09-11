@@ -11,8 +11,10 @@
 package loader_test
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/adobe/cockroachdb-workload-analyzer/internal/loader"
@@ -46,6 +48,35 @@ func TestParseMeta(t *testing.T) {
 	}
 	if meta.TimeRange.Start != "2026-05-28T19:00:00Z" {
 		t.Errorf("TimeRange.Start = %q", meta.TimeRange.Start)
+	}
+	if meta.TimeRange.End != "2026-05-29T18:48:00Z" {
+		t.Errorf("TimeRange.End = %q", meta.TimeRange.End)
+	}
+}
+
+// Meta is what /api/meta serves verbatim, so its wire shape is part of the
+// contract: the export window goes out as snake_case like every other field.
+func TestMeta_MarshalsTimeRange(t *testing.T) {
+	meta := &loader.Meta{TimeRange: loader.TimeRange{Start: "2026-05-28T19:00:00Z", End: "2026-05-29T18:48:00Z"}}
+	data, err := json.Marshal(meta)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	want := `"time_range":{"start":"2026-05-28T19:00:00Z","end":"2026-05-29T18:48:00Z"}`
+	if !strings.Contains(string(data), want) {
+		t.Errorf("Marshal = %s, want it to contain %s", data, want)
+	}
+}
+
+// An export without metadata.json yields a zero Meta; the API should then omit
+// time_range entirely rather than emit empty strings the UI has to special-case.
+func TestMeta_MarshalOmitsEmptyTimeRange(t *testing.T) {
+	data, err := json.Marshal(&loader.Meta{})
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if strings.Contains(string(data), "time_range") {
+		t.Errorf("zero Meta marshals time_range: %s", data)
 	}
 }
 

@@ -9,6 +9,7 @@
 // governing permissions and limitations under the License.
 
 import type { MetaResult } from '../api'
+import { formatTimeRange } from '../format'
 
 interface Props {
   meta: MetaResult | null
@@ -27,6 +28,17 @@ export function MetaBar({ meta, filename }: Props) {
             <>
               <span className="meta-sep">·</span>
               <span className="meta-org">{meta.organization}</span>
+            </>
+          )}
+          {meta.time_range && (
+            <>
+              <span className="meta-sep">·</span>
+              <span
+                className="meta-range"
+                title={`Export window: ${meta.time_range.start} to ${meta.time_range.end}`}
+              >
+                {formatTimeRange(meta.time_range.start, meta.time_range.end)}
+              </span>
             </>
           )}
         </>
