@@ -2,7 +2,7 @@
 
 An interactive offline analysis tool for [CockroachDB workload-exporter](https://github.com/cockroachlabs/workload-exporter/) zips. The binary is named `workload-analyzer`.
 
-Point it at a zip file, and a browser opens with 26 preloaded diagnostic queries and a free SQL editor backed by [DuckDB](https://duckdb.org/) — no database server, no cloud, no data leaves your machine.
+Point it at a zip file, and a browser opens with 26 preloaded diagnostic queries and a free SQL editor backed by [DuckDB](https://duckdb.org/); no database server, no cloud, no data leaves your machine.
 
 ## Install
 
@@ -15,7 +15,7 @@ xattr -d com.apple.quarantine ./workload-analyzer 2>/dev/null || true
 ./workload-analyzer path/to/export.zip
 ```
 
-No runtime dependencies — the binary is self-contained. Or [build from source](#building).
+No runtime dependencies. The binary is self-contained. Or [build from source](#building).
 
 ## Overview
 
@@ -27,18 +27,17 @@ workload-analyzer 2025-05-29-cutover.zip
 # → Ctrl-C to stop, temp dir is cleaned up automatically
 ```
 
-The tool ships as a **single binary** — the React frontend is embedded via `go:embed`, so nothing extra needs to be installed to run it.
+The tool ships as a **single binary**. The React frontend is embedded via `go:embed`, so nothing extra needs to be installed to run it.
 
 ## Interface
 
-Four tabs:
+Three tabs:
 
 | Tab | What it does |
 |-----|-------------|
 | **Analysis** | Click any of the 26 preloaded queries in the sidebar — results appear immediately. Click a `fingerprint_id` to open a resizable drawer with the query text and per-statement stats (transactions resolve to their constituent statements), with a button to copy the contents. |
 | **SQL** | Free-form DuckDB SQL editor (Monaco). Press `Cmd+Enter` / `Ctrl+Enter` to run. |
 | **Schema** | Raw DDL from the export's `.schema.txt` files, one database per dropdown. |
-| **Indexes** | Unused indexes, rarely-used indexes, a table-statistics audit, and stale table statistics — auto-runs on load. |
 
 Any result grid (Analysis or SQL) sorts client-side: click a column header to cycle ascending → descending → original order. Numeric columns (including bigint/decimal values the export ships as strings) sort numerically, other columns lexically, and NULLs always sort last. CSV/JSON export reflects the current sorted order.
 
@@ -73,7 +72,7 @@ Any result grid (Analysis or SQL) sorts client-side: click a column header to cy
 | Cluster | Non-Default Settings (System VC) |
 | Cluster | Persisted System Settings |
 
-All queries use DuckDB JSON path extraction against the CSV files in the export — they run entirely in-process, no network calls.
+All queries use DuckDB JSON path extraction against the CSV files in the export; they run entirely in-process, no network calls.
 
 ## Getting a workload export
 
