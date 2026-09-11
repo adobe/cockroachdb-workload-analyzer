@@ -20,9 +20,8 @@ import { useStatus } from './hooks/useStatus'
 import { AnalysisTab } from './components/tabs/AnalysisTab'
 import { SqlTab } from './components/tabs/SqlTab'
 import { SchemaTab } from './components/tabs/SchemaTab'
-import { IndexesTab } from './components/tabs/IndexesTab'
 
-type Tab = 'analysis' | 'sql' | 'schema' | 'indexes'
+type Tab = 'analysis' | 'sql' | 'schema'
 
 export default function App() {
   const status = useStatus()
@@ -58,7 +57,7 @@ export default function App() {
       <MetaBar meta={meta} filename="workload export" />
       <MissingTablesBanner tables={status.tables} />
       <nav className="tab-bar">
-        {(['analysis', 'sql', 'schema', 'indexes'] as Tab[]).map(t => (
+        {(['analysis', 'sql', 'schema'] as Tab[]).map(t => (
           <button
             key={t}
             className={`tab-btn${tab === t ? ' active' : ''}`}
@@ -81,13 +80,6 @@ export default function App() {
         )}
         {tab === 'sql' && <SqlTab onFingerprintClick={setClickedFingerprint} />}
         {tab === 'schema' && <SchemaTab />}
-        {tab === 'indexes' && (
-          <IndexesTab
-            indexQueries={queries.filter(q => q.category === 'Indexes')}
-            selectedDb={selectedDb}
-            onFingerprintClick={setClickedFingerprint}
-          />
-        )}
       </main>
       <FingerprintDrawer
         fingerprint={clickedFingerprint}

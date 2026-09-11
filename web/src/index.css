@@ -79,11 +79,6 @@ body { background: var(--bg); color: var(--text); font-family: system-ui, sans-s
 .schema-toolbar { padding: 8px 12px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .schema-select { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 12px; }
 .schema-content { flex: 1; overflow: auto; padding: 16px; font-size: 12px; line-height: 1.5; color: #adbac7; }
-.indexes-tab { display: flex; flex-direction: column; flex: 1; overflow-y: auto; gap: 0; }
-.index-panel { border-bottom: 1px solid var(--border); }
-.index-panel-header { padding: 10px 16px; background: var(--surface); }
-.index-panel-header h3 { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
-.index-panel-header p { color: var(--muted); font-size: 11px; }
 .db-picker { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 13px; cursor: pointer; margin-left: auto; }
 .fingerprint-link { color: var(--accent); cursor: pointer; text-decoration: underline; font-family: monospace; }
 .fingerprint-link:hover { opacity: 0.8; }
