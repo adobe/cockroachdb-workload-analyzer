@@ -21,7 +21,20 @@ import (
 
 	"github.com/adobe/cockroachdb-workload-analyzer/internal/catalog"
 	"github.com/adobe/cockroachdb-workload-analyzer/internal/loader"
+	_ "github.com/marcboeker/go-duckdb"
 )
+
+// openMemDB opens a throwaway in-memory DuckDB. Production loads into a
+// file-backed loader.Store so it can be reopened read-only; these tests only
+// check the catalog SQL, which runs the same either way.
+func openMemDB() (*sql.DB, error) {
+	db, err := sql.Open("duckdb", "")
+	if err != nil {
+		return nil, err
+	}
+	db.SetMaxOpenConns(1)
+	return db, nil
+}
 
 // csvFixture is one CSV file written to disk and loaded exactly like a real
 // export (via read_csv_auto), so the test exercises DuckDB's type inference and
@@ -207,7 +220,7 @@ func writeFixtures(t *testing.T) loader.ExtractedFiles {
 // the whole class of "query silently breaks against a real export" regressions:
 // GROUP BY / alias collisions, wrong JSON paths, and renamed columns.
 func TestCatalogQueries_RunAgainstFixtureExport(t *testing.T) {
-	db, err := loader.OpenDuckDB()
+	db, err := openMemDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +277,7 @@ func TestCatalogQueries_RunAgainstFixtureExport(t *testing.T) {
 // fix: the max-latency column must carry a real value, not the silent NULL that
 // $.statistics.runLat.max (absent in real exports) produced.
 func TestSlowestLatency_MaxColumnPopulated(t *testing.T) {
-	db, err := loader.OpenDuckDB()
+	db, err := openMemDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -322,7 +335,7 @@ func TestSlowestLatency_MaxColumnPopulated(t *testing.T) {
 // metadata.$.query is populated for only ~2% of rows; the fixture omits it, so a
 // query still reading the JSON path returns empty query_text here.
 func TestStatementQueries_QueryTextFromNativeColumn(t *testing.T) {
-	db, err := loader.OpenDuckDB()
+	db, err := openMemDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -374,7 +387,7 @@ func TestStatementQueries_QueryTextFromNativeColumn(t *testing.T) {
 // `fingerprint_id` column (so the drawer stays clickable), and its
 // pct_of_txn_stmts must sum to ~100 within each transaction.
 func TestTxnStatementBreakdown_JoinsAndPercentages(t *testing.T) {
-	db, err := loader.OpenDuckDB()
+	db, err := openMemDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -464,7 +477,7 @@ func TestTxnStatementBreakdown_JoinsAndPercentages(t *testing.T) {
 // database column (and an empty database dropdown). Every statement/transaction
 // catalog query that exposes a `database` column must resolve it to "appdb".
 func TestStatementDatabaseColumn_ReadsNativeColumn(t *testing.T) {
-	db, err := loader.OpenDuckDB()
+	db, err := openMemDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -519,7 +532,7 @@ func TestStatementDatabaseColumn_ReadsNativeColumn(t *testing.T) {
 // against the newly-loaded system.settings + cluster_settings.system tables and
 // return the overridden (non-default) rows from the fixture.
 func TestSettingsQueries_RunAndReturnRows(t *testing.T) {
-	db, err := loader.OpenDuckDB()
+	db, err := openMemDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -566,7 +579,7 @@ func TestSettingsQueries_RunAndReturnRows(t *testing.T) {
 // The query must cast contention_duration to INTERVAL so it binds regardless of
 // whether DuckDB inferred TIME (data present) or VARCHAR (empty table).
 func TestContentionHotspots_EmptyExport(t *testing.T) {
-	db, err := loader.OpenDuckDB()
+	db, err := openMemDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -663,7 +676,7 @@ func colIndex(cols []string, name string) int {
 // column. In the fixture fp1 averages ~1100 rows read (kept); fp2 averages ~1
 // (dropped by the floor).
 func TestRowsReadAmplification(t *testing.T) {
-	db, err := loader.OpenDuckDB()
+	db, err := openMemDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -702,7 +715,7 @@ func TestRowsReadAmplification(t *testing.T) {
 // TestLatencyDecomposition checks the parse/plan/run/overhead/idle percentages
 // are present and that they sum to ~100% of svcLat for a fingerprint.
 func TestLatencyDecomposition(t *testing.T) {
-	db, err := loader.OpenDuckDB()
+	db, err := openMemDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -736,7 +749,7 @@ func TestLatencyDecomposition(t *testing.T) {
 // vs multi-column sets, computes histogram coverage over single-column sets, counts
 // partial stats, and resolves the table name via table_indexes.
 func TestTableStatsAudit(t *testing.T) {
-	db, err := loader.OpenDuckDB()
+	db, err := openMemDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -818,7 +831,7 @@ func TestTableStatsAudit(t *testing.T) {
 // table_indexes.create_statement, instead of showing a bare table_id and the
 // uninformative __auto__ stat name.
 func TestStaleStats_TableNameResolved(t *testing.T) {
-	db, err := loader.OpenDuckDB()
+	db, err := openMemDB()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -858,7 +871,7 @@ func TestStaleStats_TableNameResolved(t *testing.T) {
 // computed across per-fingerprint mean run latencies (so the overall row spans
 // both fingerprints), and the percentiles are monotonically non-decreasing.
 func TestLatencyPercentiles(t *testing.T) {
-	db, err := loader.OpenDuckDB()
+	db, err := openMemDB()
 	if err != nil {
 		t.Fatal(err)
 	}

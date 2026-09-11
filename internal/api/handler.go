@@ -25,15 +25,23 @@ import (
 	"github.com/adobe/cockroachdb-workload-analyzer/internal/loader"
 )
 
+// Querier is what the handlers need from the database. In production it is
+// a *loader.Store, which swaps its read-write loading handle for a read-only
+// one underneath us; *sql.DB satisfies it too for tests.
+type Querier interface {
+	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+	Exec(query string, args ...any) (sql.Result, error)
+}
+
 type Handler struct {
-	db      *sql.DB
+	db      Querier
 	status  *loader.LoadStatus
 	queries []catalog.Query
 	meta    *loader.Meta
 	schemas loader.Schemas
 }
 
-func New(db *sql.DB, status *loader.LoadStatus, queries []catalog.Query, meta *loader.Meta, schemas loader.Schemas) *Handler {
+func New(db Querier, status *loader.LoadStatus, queries []catalog.Query, meta *loader.Meta, schemas loader.Schemas) *Handler {
 	return &Handler{db: db, status: status, queries: queries, meta: meta, schemas: schemas}
 }
 
@@ -163,11 +171,12 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 		}
 		finalSQL, args = BuildFilteredSQL(*found, req.DB)
 	} else {
-		// Free-form SQL waits for "ready": main hardens DuckDB (the one-way
-		// disable of external file/network access) only after loading, so
-		// running user-supplied SQL earlier would let a request read arbitrary
-		// local files via read_csv_auto(). Catalog queries above are fixed SQL
-		// from the embedded catalog and don't need the gate.
+		// Free-form SQL waits for "ready": main seals the store (reopens it
+		// read-only and disables external file/network access) only after
+		// loading, so running user-supplied SQL earlier would let a request
+		// modify the export or read arbitrary local files via read_csv_auto().
+		// Catalog queries above are fixed SQL from the embedded catalog and
+		// don't need the gate.
 		if h.status.State() != "ready" {
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -185,6 +194,7 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 	// main.go.)
 	rows, err := h.db.QueryContext(r.Context(), finalSQL, args...)
 	if err != nil {
+		h.rollbackAfterError()
 		writeJSON(w, runResponse{Error: friendlyRunError(err, h.status)})
 		return
 	}
@@ -192,6 +202,8 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 
 	cols, err := rows.Columns()
 	if err != nil {
+		rows.Close()
+		h.rollbackAfterError()
 		writeJSON(w, runResponse{Error: err.Error()})
 		return
 	}
@@ -206,6 +218,8 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 			ptrs[i] = &vals[i]
 		}
 		if err := rows.Scan(ptrs...); err != nil {
+			rows.Close()
+			h.rollbackAfterError()
 			writeJSON(w, runResponse{Error: err.Error()})
 			return
 		}
@@ -216,6 +230,8 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 	// Next returns false on both end-of-rows and failure; without this check
 	// a mid-stream error would be reported as a shorter, successful result.
 	if err := rows.Err(); err != nil {
+		rows.Close()
+		h.rollbackAfterError()
 		writeJSON(w, runResponse{Error: friendlyRunError(err, h.status)})
 		return
 	}
@@ -225,6 +241,20 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 		Rows:       result,
 		DurationMs: time.Since(start).Milliseconds(),
 	})
+}
+
+// rollbackAfterError clears an aborted transaction left behind by a failed
+// statement. DuckDB has a single connection here and go-duckdb doesn't reset
+// sessions, so after "BEGIN; <anything that fails>" every later request —
+// catalog queries included — would fail with "Current transaction is
+// aborted" until someone typed ROLLBACK. On a sealed store every write
+// fails, so this is easy to hit by accident. ROLLBACK outside a transaction
+// is a harmless error; callers must have closed any open rows first, or the
+// Exec would wait on the connection they hold.
+func (h *Handler) rollbackAfterError() {
+	if _, err := h.db.Exec("ROLLBACK"); err != nil && !strings.Contains(err.Error(), "no transaction is active") {
+		log.Printf("rollback after failed statement: %v", err)
+	}
 }
 
 // missingTableRe matches DuckDB's catalog error for a table that doesn't exist.

@@ -13,6 +13,7 @@ package main
 import (
 	"net"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -44,13 +45,13 @@ func TestListenWithFallback_BindsLoopback(t *testing.T) {
 // alone doesn't stop the user's own browser from delivering cross-site
 // requests to /api/run.
 func TestNewServerHandler_GuardsAgainstCrossSiteRequests(t *testing.T) {
-	db, err := loader.OpenDuckDB()
+	store, err := loader.OpenStore(filepath.Join(t.TempDir(), "export.duckdb"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer db.Close()
+	defer store.Close()
 
-	h := api.New(db, loader.NewLoadStatus(), catalog.All(), &loader.Meta{}, loader.Schemas{})
+	h := api.New(store, loader.NewLoadStatus(), catalog.All(), &loader.Meta{}, loader.Schemas{})
 	handler := newServerHandler(h)
 
 	// A hostile page's CSRF POST carries its own Origin.
