@@ -99,6 +99,19 @@ describe('FingerprintDrawer', () => {
     expect(await screen.findByText('Copied')).toBeInTheDocument()
   })
 
+  it('exposes the drawer as a modal dialog for assistive tech', () => {
+    render(<FingerprintDrawer fingerprint="\\xcaaa" onClose={() => {}} />)
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveAttribute('aria-modal', 'true')
+    expect(dialog).toHaveAttribute('aria-label')
+  })
+
+  it('moves focus into the drawer when opened', () => {
+    render(<FingerprintDrawer fingerprint="\\xcaaa" onClose={() => {}} />)
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.contains(document.activeElement)).toBe(true)
+  })
+
   it('calls onClose when close button is clicked', () => {
     const onClose = vi.fn()
     render(<FingerprintDrawer fingerprint="\\xcaaa" onClose={onClose} />)

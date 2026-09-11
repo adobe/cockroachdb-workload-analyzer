@@ -8,7 +8,7 @@
 // OF ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useFingerprintDetail, type StmtDetail } from '../hooks/useFingerprintDetail'
 import { useDrawerWidth } from '../hooks/useDrawerWidth'
 import { drawerToText } from '../drawerText'
@@ -47,6 +47,8 @@ export function FingerprintDrawer({ fingerprint, onClose }: Props) {
   // drawer content changes without a setState-in-effect (lint: set-state-in-effect).
   const [copiedFor, setCopiedFor] = useState<string | null>(null)
   const copied = copiedFor === fingerprint
+  const closeRef = useRef<HTMLButtonElement>(null)
+  const prevFocusRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
     if (fingerprint) lookup(fingerprint)
@@ -60,6 +62,15 @@ export function FingerprintDrawer({ fingerprint, onClose }: Props) {
     document.addEventListener('keydown', handler)
     return () => document.removeEventListener('keydown', handler)
   }, [fingerprint, onClose])
+
+  // Focus management: when the drawer opens, remember what was focused, move
+  // focus into the drawer, and restore it to the trigger when the drawer closes.
+  useEffect(() => {
+    if (!fingerprint) return
+    prevFocusRef.current = document.activeElement as HTMLElement | null
+    closeRef.current?.focus()
+    return () => prevFocusRef.current?.focus?.()
+  }, [fingerprint])
 
   if (!fingerprint) return null
 
@@ -77,7 +88,13 @@ export function FingerprintDrawer({ fingerprint, onClose }: Props) {
   return (
     <>
       <div className="drawer-backdrop" onClick={onClose} />
-      <div className="drawer open" style={{ width }}>
+      <div
+        className="drawer open"
+        style={{ width }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Fingerprint details"
+      >
         <div
           className="drawer-resize"
           onPointerDown={startResize}
@@ -96,7 +113,7 @@ export function FingerprintDrawer({ fingerprint, onClose }: Props) {
             >
               {copied ? 'Copied' : 'Copy'}
             </button>
-            <button className="drawer-close" onClick={onClose} aria-label="Close">×</button>
+            <button ref={closeRef} className="drawer-close" onClick={onClose} aria-label="Close">×</button>
           </div>
         </div>
         <div className="drawer-body">

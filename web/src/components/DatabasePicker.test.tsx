@@ -32,6 +32,11 @@ describe('DatabasePicker', () => {
     expect(onSelect).toHaveBeenCalledWith('db_a')
   })
 
+  it('labels the select for assistive tech', () => {
+    render(<DatabasePicker databases={['db_a', 'db_b']} selected="" onSelect={() => {}} />)
+    expect(screen.getByRole('combobox', { name: /database/i })).toBeInTheDocument()
+  })
+
   it('reflects the selected prop as the current value', () => {
     render(<DatabasePicker databases={['db_a', 'db_b']} selected="db_b" onSelect={() => {}} />)
     expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('db_b')

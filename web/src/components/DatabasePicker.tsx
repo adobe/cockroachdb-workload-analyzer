@@ -18,6 +18,7 @@ export function DatabasePicker({ databases, selected, onSelect }: Props) {
   return (
     <select
       className="db-picker"
+      aria-label="Filter by database"
       value={selected}
       onChange={e => onSelect(e.target.value)}
     >

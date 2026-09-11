@@ -80,7 +80,7 @@ body { background: var(--bg); color: var(--text); font-family: system-ui, sans-s
 .schema-select { background: var(--bg); color: var(--text); border: 1px solid var(--border); padding: 4px 8px; border-radius: 4px; font-size: 12px; }
 .schema-content { flex: 1; overflow: auto; padding: 16px; font-size: 12px; line-height: 1.5; color: #adbac7; }
 .db-picker { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 13px; cursor: pointer; margin-left: auto; }
-.fingerprint-link { color: var(--accent); cursor: pointer; text-decoration: underline; font-family: monospace; }
+.fingerprint-link { color: var(--accent); cursor: pointer; text-decoration: underline; font-family: monospace; background: none; border: none; padding: 0; font-size: inherit; }
 .fingerprint-link:hover { opacity: 0.8; }
 .drawer-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 10; }
 .drawer { position: fixed; top: 0; right: 0; height: 100vh; width: 400px; background: var(--surface); border-left: 1px solid var(--border); z-index: 11; transform: translateX(100%); transition: transform 0.2s ease; display: flex; flex-direction: column; }

@@ -145,12 +145,13 @@ export function ResultsTable({ result, loading, onFingerprintClick }: Props) {
                   if (j === fpColIndex && cell !== null) {
                     return (
                       <td key={j}>
-                        <span
+                        <button
+                          type="button"
                           className="fingerprint-link"
                           onClick={() => onFingerprintClick!(String(cell))}
                         >
                           {String(cell)}
-                        </span>
+                        </button>
                       </td>
                     )
                   }

@@ -103,6 +103,17 @@ describe('ResultsTable', () => {
     expect(link.className).toContain('fingerprint-link')
   })
 
+  it('renders the fingerprint cell as a focusable button for keyboard access', () => {
+    const onFingerprintClick = vi.fn()
+    const result = {
+      columns: ['fingerprint_id', 'name'],
+      rows: [['\\xcaaa890e4d5329cd', 'alice']],
+      duration_ms: 1,
+    }
+    render(<ResultsTable result={result} loading={false} onFingerprintClick={onFingerprintClick} />)
+    expect(screen.getByRole('button', { name: '\\xcaaa890e4d5329cd' })).toBeInTheDocument()
+  })
+
   it('calls onFingerprintClick with cell value when fingerprint cell clicked', async () => {
     const onFingerprintClick = vi.fn()
     const result = {

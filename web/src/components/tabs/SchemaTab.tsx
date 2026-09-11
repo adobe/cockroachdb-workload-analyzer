@@ -33,6 +33,7 @@ export function SchemaTab() {
           value={selected}
           onChange={e => setSelected(e.target.value)}
           className="schema-select"
+          aria-label="Select database schema"
         >
           {databases.map(db => <option key={db} value={db}>{db}</option>)}
         </select>
