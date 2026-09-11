@@ -50,4 +50,14 @@ describe('useRun', () => {
 
     expect(result.current.result).toEqual(mockResult)
   })
+
+  it('surfaces a rejected run as an error result and clears loading', async () => {
+    vi.mocked(api.runQuery).mockRejectedValue(new api.ApiError(500, 'Internal Server Error', '/api/run'))
+
+    const { result } = renderHook(() => useRun())
+    await act(async () => { await result.current.run('SELECT bad') })
+
+    expect(result.current.loading).toBe(false)
+    expect(result.current.result?.error).toBeTruthy()
+  })
 })

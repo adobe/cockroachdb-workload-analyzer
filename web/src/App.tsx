@@ -16,6 +16,7 @@ import { MetaBar } from './components/MetaBar'
 import { DatabasePicker } from './components/DatabasePicker'
 import { FingerprintDrawer } from './components/FingerprintDrawer'
 import { MissingTablesBanner } from './components/MissingTablesBanner'
+import { ErrorBanner } from './components/ErrorBanner'
 import { useStatus } from './hooks/useStatus'
 import { AnalysisTab } from './components/tabs/AnalysisTab'
 import { SqlTab } from './components/tabs/SqlTab'
@@ -31,15 +32,32 @@ export default function App() {
   const [selectedDb, setSelectedDb] = useState('')
   const [databases, setDatabases] = useState<string[]>([])
   const [clickedFingerprint, setClickedFingerprint] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetchMeta().then(setMeta).catch(() => {})
-    fetchQueries().then(setQueries).catch(() => {})
+    fetchMeta().then(setMeta).catch(err => {
+      // Meta is decorative (the top bar); don't block the app on it.
+      console.error(err)
+    })
+    fetchQueries().then(setQueries).catch(err => {
+      // This list is only a fast fallback for AnalysisTab, which fetches the
+      // full list itself and surfaces its own error banner. Staying silent here
+      // avoids showing two banners for the same failure.
+      console.error(err)
+    })
   }, [])
 
   useEffect(() => {
     if (status.state === 'ready') {
-      fetchDatabases().then(setDatabases).catch(() => {})
+      fetchDatabases()
+        .then(dbs => {
+          setDatabases(dbs)
+          setError(null)
+        })
+        .catch(err => {
+          console.error(err)
+          setError("Couldn't load the database list. The server may be unavailable — try reloading.")
+        })
     }
   }, [status.state])
 
@@ -55,6 +73,7 @@ export default function App() {
   return (
     <div className="app">
       <MetaBar meta={meta} filename="workload export" />
+      <ErrorBanner message={error} onDismiss={() => setError(null)} />
       <MissingTablesBanner tables={status.tables} />
       <nav className="tab-bar">
         {(['analysis', 'sql', 'schema'] as Tab[]).map(t => (

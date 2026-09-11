@@ -10,31 +10,19 @@
 
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { SchemaTab } from './SchemaTab'
+import { AnalysisTab } from './AnalysisTab'
 
-vi.mock('../../api', () => ({
-  fetchSchema: vi.fn(),
-}))
+describe('AnalysisTab', () => {
+  beforeEach(() => vi.clearAllMocks())
 
-import { fetchSchema } from '../../api'
-
-describe('SchemaTab', () => {
-  beforeEach(() => {
-    vi.mocked(fetchSchema).mockResolvedValue({
-      databases: { prod: 'CREATE TABLE prod ...', staging: 'CREATE TABLE staging ...' },
+  it('surfaces an error banner when the query list fails to load', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+      json: () => Promise.reject(new SyntaxError('Unexpected token <')),
     })
-  })
-
-  it('labels the database select for assistive tech', async () => {
-    render(<SchemaTab />)
-    await waitFor(() =>
-      expect(screen.getByRole('combobox', { name: /database/i })).toBeInTheDocument(),
-    )
-  })
-
-  it('surfaces an error banner when the schema fails to load', async () => {
-    vi.mocked(fetchSchema).mockRejectedValue(new Error('boom'))
-    render(<SchemaTab />)
+    render(<AnalysisTab queries={[]} selectedDb="" />)
     await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
   })
 })

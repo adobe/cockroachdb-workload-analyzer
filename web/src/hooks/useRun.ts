@@ -22,6 +22,12 @@ export function useRun() {
     try {
       const r = await runQuery(sql)
       setResult(r)
+    } catch (err) {
+      // A rejected runQuery (HTTP failure, network error) would otherwise be an
+      // unhandled rejection that leaves the pane on "No results". Surface it
+      // through ResultsTable's error state instead.
+      console.error(err)
+      setResult({ columns: [], rows: [], duration_ms: 0, error: 'Query failed to run. The server may be unavailable — try reloading.' })
     } finally {
       setLoading(false)
     }

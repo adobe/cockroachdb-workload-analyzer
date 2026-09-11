@@ -23,6 +23,10 @@ body { background: var(--bg); color: var(--text); font-family: system-ui, sans-s
 .missing-banner-reason { color: var(--muted); }
 .missing-banner-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; flex-shrink: 0; }
 .missing-banner-close:hover { color: var(--text); }
+.error-banner { display: flex; align-items: flex-start; gap: 8px; padding: 8px 16px; background: rgba(248, 81, 73, 0.12); border-bottom: 1px solid var(--error); color: var(--text); font-size: 12px; line-height: 1.5; }
+.error-banner-text { flex: 1; color: var(--error); }
+.error-banner-close { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; flex-shrink: 0; }
+.error-banner-close:hover { color: var(--text); }
 .tab-btn { background: none; border: none; color: var(--muted); padding: 8px 16px; cursor: pointer; border-bottom: 2px solid transparent; font-size: 13px; }
 .tab-btn:hover { color: var(--text); }
 .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }

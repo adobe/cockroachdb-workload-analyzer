@@ -9,15 +9,11 @@
 // governing permissions and limitations under the License.
 
 import { useEffect, useState } from 'react'
-import type { QueryDef, RunResult } from '../../api'
-import { runCatalogQuery } from '../../api'
+import type { QueryDef, QueryDefFull, RunResult } from '../../api'
+import { fetchQueriesFull, runCatalogQuery } from '../../api'
 import { QueryList } from '../QueryList'
 import { ResultsTable } from '../ResultsTable'
-
-interface QueryWithSQL extends QueryDef {
-  sql: string
-  db_filter_expr?: string
-}
+import { ErrorBanner } from '../ErrorBanner'
 
 interface Props {
   queries: QueryDef[]
@@ -44,7 +40,12 @@ function QueryResult({
     let ignore = false
     runCatalogQuery(queryId, db)
       .then(r => { if (!ignore) setResult(r) })
-      .catch(() => {})
+      .catch(err => {
+        // Surface the failure through ResultsTable's error state rather than
+        // rendering an indistinguishable "No results".
+        console.error(err)
+        if (!ignore) setResult({ columns: [], rows: [], duration_ms: 0, error: 'Query failed to run. The server may be unavailable — try reloading.' })
+      })
       .finally(() => { if (!ignore) setLoading(false) })
     return () => { ignore = true }
   }, [queryId, db])
@@ -53,14 +54,20 @@ function QueryResult({
 }
 
 export function AnalysisTab({ queries: queriesWithoutSQL, selectedDb, onFingerprintClick }: Props) {
-  const [queries, setQueries] = useState<QueryWithSQL[]>([])
+  const [queries, setQueries] = useState<QueryDefFull[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/queries?full=1')
-      .then(r => r.json())
-      .then(setQueries)
-      .catch(() => {})
+    fetchQueriesFull()
+      .then(qs => {
+        setQueries(qs)
+        setError(null)
+      })
+      .catch(err => {
+        console.error(err)
+        setError("Couldn't load the analysis queries. The server may be unavailable — try reloading.")
+      })
   }, [])
 
   const active = queries.find(q => q.id === activeId)
@@ -76,6 +83,7 @@ export function AnalysisTab({ queries: queriesWithoutSQL, selectedDb, onFingerpr
         onSelect={setActiveId}
       />
       <div className="analysis-main">
+        <ErrorBanner message={error} onDismiss={() => setError(null)} />
         {active && (
           <div className="analysis-header">
             <h3>{active.name}</h3>

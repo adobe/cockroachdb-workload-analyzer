@@ -12,13 +12,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { MonacoEditor } from '../MonacoEditor'
 import { ResultsTable } from '../ResultsTable'
 import { QueryList } from '../QueryList'
+import { ErrorBanner } from '../ErrorBanner'
 import { useRun } from '../../hooks/useRun'
-import type { QueryDef } from '../../api'
-
-interface QueryWithSQL extends QueryDef {
-  sql: string
-  db_filter_expr?: string
-}
+import { fetchQueriesFull } from '../../api'
+import type { QueryDefFull } from '../../api'
 
 const DEFAULT_SQL = '-- Write your SQL here\n-- Ctrl+Enter or Cmd+Enter to run\nSELECT * FROM stmt_stats LIMIT 10'
 
@@ -41,13 +38,19 @@ export function SqlTab({ onFingerprintClick }: Props) {
     setValue: (v: string) => void
     addCommand: (keybinding: number, handler: () => void) => void
   } | null>(null)
-  const [queries, setQueries] = useState<QueryWithSQL[]>([])
+  const [queries, setQueries] = useState<QueryDefFull[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/queries?full=1')
-      .then(r => r.json())
-      .then(setQueries)
-      .catch(() => {})
+    fetchQueriesFull()
+      .then(qs => {
+        setQueries(qs)
+        setError(null)
+      })
+      .catch(err => {
+        console.error(err)
+        setError("Couldn't load the saved queries. The server may be unavailable — try reloading.")
+      })
   }, [])
 
   const handleMount = useCallback((editor: {
@@ -82,6 +85,7 @@ export function SqlTab({ onFingerprintClick }: Props) {
   return (
     <div className="sql-tab">
       <div className="sql-sidebar">
+        <ErrorBanner message={error} onDismiss={() => setError(null)} />
         <QueryList queries={queries} activeId={null} onSelect={handleInsert} />
       </div>
       <div className="sql-editor-column">

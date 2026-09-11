@@ -11,23 +11,30 @@
 import { useEffect, useState } from 'react'
 import { fetchSchema } from '../../api'
 import type { SchemaResult } from '../../api'
+import { ErrorBanner } from '../ErrorBanner'
 
 export function SchemaTab() {
   const [schema, setSchema] = useState<SchemaResult | null>(null)
   const [selected, setSelected] = useState<string>('')
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchSchema().then(s => {
       setSchema(s)
+      setError(null)
       const first = Object.keys(s.databases)[0]
       if (first) setSelected(first)
-    }).catch(() => {})
+    }).catch(err => {
+      console.error(err)
+      setError("Couldn't load the schema. The server may be unavailable — try reloading.")
+    })
   }, [])
 
   const databases = schema ? Object.keys(schema.databases).sort() : []
 
   return (
     <div className="schema-tab">
+      <ErrorBanner message={error} onDismiss={() => setError(null)} />
       <div className="schema-toolbar">
         <select
           value={selected}

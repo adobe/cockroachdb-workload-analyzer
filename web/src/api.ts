@@ -55,24 +55,57 @@ export interface SchemaResult {
   databases: Record<string, string>
 }
 
-export async function fetchStatus(): Promise<StatusResult> {
-  const res = await fetch('/api/status')
-  return res.json()
+// QueryDefFull is a QueryDef plus the fields the /api/queries?full=1 endpoint
+// adds: the SQL text and the optional per-database filter expression.
+export interface QueryDefFull extends QueryDef {
+  sql: string
+  db_filter_expr?: string
 }
 
-export async function fetchMeta(): Promise<MetaResult> {
-  const res = await fetch('/api/meta')
-  return res.json()
+// ApiError is thrown for any non-2xx response so callers can distinguish a real
+// HTTP failure from a valid-but-empty result. Without it, a failed fetch used to
+// slip through res.json() and render as a silently empty view.
+export class ApiError extends Error {
+  readonly status: number
+  readonly statusText: string
+  readonly url: string
+
+  constructor(status: number, statusText: string, url: string) {
+    super(`Request to ${url} failed: ${status} ${statusText}`)
+    this.name = 'ApiError'
+    this.status = status
+    this.statusText = statusText
+    this.url = url
+  }
 }
 
-export async function fetchQueries(): Promise<QueryDef[]> {
-  const res = await fetch('/api/queries')
-  return res.json()
+// requestJSON is the single fetch chokepoint: it checks res.ok before touching
+// the body, so an error response (often HTML, which res.json() would choke on)
+// surfaces as an ApiError instead of a swallowed parse failure.
+async function requestJSON<T>(url: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(url, init)
+  if (!res.ok) throw new ApiError(res.status, res.statusText, url)
+  return res.json() as Promise<T>
 }
 
-export async function fetchSchema(): Promise<SchemaResult> {
-  const res = await fetch('/api/schema')
-  return res.json()
+export function fetchStatus(): Promise<StatusResult> {
+  return requestJSON('/api/status')
+}
+
+export function fetchMeta(): Promise<MetaResult> {
+  return requestJSON('/api/meta')
+}
+
+export function fetchQueries(): Promise<QueryDef[]> {
+  return requestJSON('/api/queries')
+}
+
+export function fetchQueriesFull(): Promise<QueryDefFull[]> {
+  return requestJSON('/api/queries?full=1')
+}
+
+export function fetchSchema(): Promise<SchemaResult> {
+  return requestJSON('/api/schema')
 }
 
 // normalizeRun guards against a null `rows` (a zero-row result serializes to
@@ -82,24 +115,25 @@ function normalizeRun(r: RunResult): RunResult {
 }
 
 export async function runQuery(sql: string): Promise<RunResult> {
-  const res = await fetch('/api/run', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ sql }),
-  })
-  return normalizeRun(await res.json())
+  return normalizeRun(
+    await requestJSON<RunResult>('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sql }),
+    }),
+  )
 }
 
-export async function fetchDatabases(): Promise<string[]> {
-  const res = await fetch('/api/databases')
-  return res.json()
+export function fetchDatabases(): Promise<string[]> {
+  return requestJSON('/api/databases')
 }
 
 export async function runCatalogQuery(queryId: string, db: string): Promise<RunResult> {
-  const res = await fetch('/api/run', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query_id: queryId, db }),
-  })
-  return normalizeRun(await res.json())
+  return normalizeRun(
+    await requestJSON<RunResult>('/api/run', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query_id: queryId, db }),
+    }),
+  )
 }

@@ -36,6 +36,8 @@ describe('SqlTab sidebar', () => {
     mountEditor = true
     mockEditor.getValue.mockReturnValue('SELECT 0')
     globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
       json: () =>
         Promise.resolve([
           {
@@ -48,6 +50,17 @@ describe('SqlTab sidebar', () => {
           },
         ]),
     })
+  })
+
+  it('surfaces an error banner when the query list fails to load', async () => {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 500,
+      statusText: 'Internal Server Error',
+      json: () => Promise.reject(new SyntaxError('Unexpected token <')),
+    })
+    render(<SqlTab />)
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
   })
 
   it('appends query SQL with comment header when sidebar item clicked', async () => {
