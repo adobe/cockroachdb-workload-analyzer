@@ -145,6 +145,17 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 		}
 		finalSQL, args = BuildFilteredSQL(*found, req.DB)
 	} else {
+		// Free-form SQL waits for "ready": main hardens DuckDB (the one-way
+		// disable of external file/network access) only after loading, so
+		// running user-supplied SQL earlier would let a request read arbitrary
+		// local files via read_csv_auto(). Catalog queries above are fixed SQL
+		// from the embedded catalog and don't need the gate.
+		if h.status.State() != "ready" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			writeJSON(w, runResponse{Error: "The export is still loading — the SQL editor is available once loading completes."})
+			return
+		}
 		finalSQL = req.SQL
 	}
 

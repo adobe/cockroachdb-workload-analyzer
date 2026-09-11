@@ -81,6 +81,7 @@ func TestHandleRun_ExecutesSQL(t *testing.T) {
 	db.Exec("CREATE TABLE test_tbl AS SELECT 42 AS val")
 
 	status := loader.NewLoadStatus()
+	status.SetReady() // free-form SQL is gated until loading completes
 	h := api.New(db, status, catalog.All(), &loader.Meta{}, loader.Schemas{})
 
 	mux := http.NewServeMux()
@@ -103,11 +104,85 @@ func TestHandleRun_ExecutesSQL(t *testing.T) {
 	}
 }
 
+// Free-form SQL must be refused until loading completes: main hardens DuckDB
+// (the one-way disable of external file/network access) only after LoadCSVs
+// finishes, so during loading a cross-site request could still read arbitrary
+// local files via read_csv_auto(). "ready" means "loaded AND hardened" — only
+// then may user-supplied SQL reach the database.
+func TestHandleRun_FreeFormSQLRefusedWhileLoading(t *testing.T) {
+	db := testDB(t)
+	db.Exec("CREATE TABLE test_tbl AS SELECT 42 AS val")
+
+	status := loader.NewLoadStatus() // still "loading"
+	h := api.New(db, status, catalog.All(), &loader.Meta{}, loader.Schemas{})
+	mux := http.NewServeMux()
+	h.Register(mux)
+
+	req := httptest.NewRequest("POST", "/api/run", strings.NewReader(`{"sql":"SELECT val FROM test_tbl"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusServiceUnavailable {
+		t.Errorf("status = %d, want 503 while loading", rr.Code)
+	}
+	var result map[string]any
+	json.Unmarshal(rr.Body.Bytes(), &result)
+	errMsg, _ := result["error"].(string)
+	if !strings.Contains(errMsg, "loading") {
+		t.Errorf("error = %q, want a message explaining the export is still loading", errMsg)
+	}
+	if result["rows"] != nil {
+		t.Errorf("rows = %v, want none — the SQL must not execute", result["rows"])
+	}
+
+	// The identical request succeeds once loading (and hardening) completed.
+	status.SetReady()
+	req = httptest.NewRequest("POST", "/api/run", strings.NewReader(`{"sql":"SELECT val FROM test_tbl"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("status after ready = %d, want 200", rr.Code)
+	}
+	result = nil
+	json.Unmarshal(rr.Body.Bytes(), &result)
+	if result["error"] != nil {
+		t.Errorf("unexpected error after ready: %v", result["error"])
+	}
+	if rows, _ := result["rows"].([]any); len(rows) != 1 {
+		t.Errorf("expected 1 row after ready, got %v", result["rows"])
+	}
+}
+
+// Catalog queries are fixed SQL from the embedded catalog — safe by
+// construction — so they stay available while loading (the UI polls status
+// but must not be locked out of predefined queries by the free-form gate).
+func TestHandleRun_CatalogQueryNotGatedWhileLoading(t *testing.T) {
+	db := testDB(t)
+	h := api.New(db, loader.NewLoadStatus(), catalog.All(), &loader.Meta{}, loader.Schemas{})
+	mux := http.NewServeMux()
+	h.Register(mux)
+
+	queryID := catalog.All()[0].ID
+	req := httptest.NewRequest("POST", "/api/run", strings.NewReader(`{"query_id":"`+queryID+`"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	mux.ServeHTTP(rr, req)
+
+	if rr.Code == http.StatusServiceUnavailable {
+		t.Errorf("catalog query %s was refused by the loading gate; only free-form SQL should be", queryID)
+	}
+}
+
 func TestHandleRun_ZeroRowsReturnsEmptyArray(t *testing.T) {
 	db := testDB(t)
 	db.Exec("CREATE TABLE test_tbl AS SELECT 42 AS val")
 
-	h := api.New(db, loader.NewLoadStatus(), catalog.All(), &loader.Meta{}, loader.Schemas{})
+	status := loader.NewLoadStatus()
+	status.SetReady() // free-form SQL is gated until loading completes
+	h := api.New(db, status, catalog.All(), &loader.Meta{}, loader.Schemas{})
 	mux := http.NewServeMux()
 	h.Register(mux)
 
@@ -167,6 +242,7 @@ func TestHandleRun_MissingTableIsFriendly(t *testing.T) {
 
 func TestHandleRun_ReturnsErrorOnBadSQL(t *testing.T) {
 	status := loader.NewLoadStatus()
+	status.SetReady() // free-form SQL is gated until loading completes
 	h := api.New(testDB(t), status, catalog.All(), &loader.Meta{}, loader.Schemas{})
 
 	mux := http.NewServeMux()

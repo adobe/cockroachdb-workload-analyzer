@@ -123,10 +123,11 @@ Binary layout:
 
 ## Security & trust model
 
-The tool runs **locally, on your own machine, against your own export**. The free-form SQL tab executes arbitrary DuckDB SQL by design, so two guards keep that scoped:
+The tool runs **locally, on your own machine, against your own export**. The free-form SQL tab executes arbitrary DuckDB SQL by design, so several guards keep that scoped:
 
 - **Loopback only** — the HTTP server binds to `127.0.0.1`, so `/api/run` is not reachable from the network.
-- **No file access after load** — once the export is loaded, DuckDB's `enable_external_access` is switched off (a one-way switch DuckDB won't let a query re-enable). The SQL editor can run arbitrary *read-only, in-memory* SQL over the loaded tables, but can't read other files on disk via `read_csv`/`COPY`/`ATTACH`.
+- **Cross-site requests refused** — loopback binding alone doesn't stop your own browser: any website you visit can fire cross-origin requests at `http://localhost:<port>`. The server rejects requests whose `Origin` is not a loopback origin (CSRF) and requests whose `Host` header is not a loopback name (DNS rebinding).
+- **No file access after load** — once the export is loaded, DuckDB's `enable_external_access` is switched off (a one-way switch DuckDB won't let a query re-enable) and the configuration is locked with `lock_configuration`, so no setting can be changed from SQL afterwards. The SQL editor can run arbitrary *read-only, in-memory* SQL over the loaded tables, but can't read other files on disk via `read_csv`/`COPY`/`ATTACH`. Free-form SQL is refused until this lockdown is in place — "ready" means *loaded and hardened* — so there is no window where user-supplied SQL runs with file access enabled.
 - **In-memory & read-only** — nothing is written back to any cluster; all data lives in the in-memory DuckDB and is discarded on exit.
 
 ## Prerequisites

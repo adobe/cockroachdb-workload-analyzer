@@ -12,7 +12,13 @@ package main
 
 import (
 	"net"
+	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"github.com/adobe/cockroachdb-workload-analyzer/internal/api"
+	"github.com/adobe/cockroachdb-workload-analyzer/internal/catalog"
+	"github.com/adobe/cockroachdb-workload-analyzer/internal/loader"
 )
 
 // The HTTP server must bind to loopback only. Binding to all interfaces would
@@ -30,5 +36,48 @@ func TestListenWithFallback_BindsLoopback(t *testing.T) {
 	}
 	if !addr.IP.IsLoopback() {
 		t.Errorf("server bound to %s; want loopback (must not be network-reachable)", addr.IP)
+	}
+}
+
+// The localhost-only guard must wrap the handler the server actually serves —
+// a guard that exists but isn't wired protects nothing. Loopback binding
+// alone doesn't stop the user's own browser from delivering cross-site
+// requests to /api/run.
+func TestNewServerHandler_GuardsAgainstCrossSiteRequests(t *testing.T) {
+	db, err := loader.OpenDuckDB()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+
+	h := api.New(db, loader.NewLoadStatus(), catalog.All(), &loader.Meta{}, loader.Schemas{})
+	handler := newServerHandler(h)
+
+	// A hostile page's CSRF POST carries its own Origin.
+	req := httptest.NewRequest("POST", "/api/run", strings.NewReader(`{"sql":"SELECT 1"}`))
+	req.Host = "localhost:8080"
+	req.Header.Set("Origin", "https://evil.example.com")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != 403 {
+		t.Errorf("cross-origin POST /api/run: status = %d, want 403", rr.Code)
+	}
+
+	// DNS rebinding presents a non-loopback Host; static files are guarded too.
+	req = httptest.NewRequest("GET", "/", nil)
+	req.Host = "attacker.example.com"
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != 403 {
+		t.Errorf("rebound-host GET /: status = %d, want 403", rr.Code)
+	}
+
+	// The legitimate UI keeps working.
+	req = httptest.NewRequest("GET", "/api/status", nil)
+	req.Host = "localhost:8080"
+	rr = httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+	if rr.Code != 200 {
+		t.Errorf("same-origin GET /api/status: status = %d, want 200", rr.Code)
 	}
 }

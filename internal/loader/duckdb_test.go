@@ -51,6 +51,28 @@ func TestLoadCSVs_LoadsTable(t *testing.T) {
 	}
 }
 
+// LoadCSVs must NOT flip the status to ready itself: main hardens DuckDB
+// (disabling external file/network access) between loading and SetReady, so
+// "ready" also guarantees the SQL editor can no longer touch the filesystem.
+// If LoadCSVs marked ready directly, free-form SQL would be allowed during
+// that unhardened window.
+func TestLoadCSVs_ReadyOnlyAfterSetReady(t *testing.T) {
+	db, _ := loader.OpenDuckDB()
+	defer db.Close()
+
+	status := loader.NewLoadStatus()
+	loader.LoadCSVs(db, loader.ExtractedFiles{}, status)
+
+	if status.State() != "loading" {
+		t.Errorf("state after LoadCSVs = %q, want 'loading' (ready is the caller's call, after hardening)", status.State())
+	}
+
+	status.SetReady()
+	if status.State() != "ready" {
+		t.Errorf("state after SetReady = %q, want 'ready'", status.State())
+	}
+}
+
 func TestLoadStatus_Progress(t *testing.T) {
 	status := loader.NewLoadStatus()
 	if status.State() != "loading" {

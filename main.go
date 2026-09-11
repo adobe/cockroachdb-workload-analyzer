@@ -89,16 +89,18 @@ func main() {
 		loader.LoadCSVs(db, files, status)
 		// Lock down file/network access now that the export is loaded, so the
 		// SQL editor can't read arbitrary local files via read_csv/COPY.
+		// SetReady comes after: the API refuses free-form SQL until "ready",
+		// so ready must imply hardened. If hardening fails we must not serve
+		// at all — marking ready anyway would hand the SQL editor an
+		// unrestricted database, and nothing is persisted, so exiting is safe.
 		if err := loader.HardenDuckDB(db); err != nil {
-			log.Printf("warning: could not harden DuckDB: %v", err)
+			log.Fatalf("could not harden DuckDB; refusing to serve unhardened: %v", err)
 		}
+		status.SetReady()
 		log.Println("all tables loaded — ready")
 	}()
 
 	h := api.New(db, status, catalog.All(), meta, schemas)
-	mux := http.NewServeMux()
-	h.Register(mux)
-	mux.Handle("/", spaFS())
 
 	ln, err := listenWithFallback(*port)
 	if err != nil {
@@ -109,7 +111,7 @@ func main() {
 	log.Printf("serving at %s", url)
 	openBrowser(url)
 
-	srv := &http.Server{Handler: mux}
+	srv := &http.Server{Handler: newServerHandler(h)}
 	go srv.Serve(ln)
 
 	quit := make(chan os.Signal, 1)
@@ -117,6 +119,16 @@ func main() {
 	<-quit
 	log.Println("shutting down")
 	srv.Shutdown(context.Background())
+}
+
+// newServerHandler assembles the complete HTTP handler: API routes plus the
+// embedded SPA, wrapped in the localhost-only guard so cross-site (CSRF) and
+// DNS-rebinding requests are refused before reaching any route.
+func newServerHandler(h *api.Handler) http.Handler {
+	mux := http.NewServeMux()
+	h.Register(mux)
+	mux.Handle("/", spaFS())
+	return api.LocalhostOnly(mux)
 }
 
 // listenWithFallback binds to loopback only. /api/run executes arbitrary

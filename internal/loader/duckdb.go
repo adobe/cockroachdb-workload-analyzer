@@ -88,7 +88,11 @@ func (s *LoadStatus) setProgress(p float64) {
 	s.progress = p
 }
 
-func (s *LoadStatus) setReady() {
+// SetReady marks loading complete. The caller flips this — not LoadCSVs —
+// because "ready" gates free-form SQL in the API: main calls HardenDuckDB
+// between LoadCSVs and SetReady, so "ready" also guarantees the database can
+// no longer read local files or reach the network.
+func (s *LoadStatus) SetReady() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.state = "ready"
@@ -106,15 +110,22 @@ func OpenDuckDB() (*sql.DB, error) {
 	return db, nil
 }
 
-// HardenDuckDB disables external file/network access. Call it once the export
-// is fully loaded: after this, the free-form SQL editor can no longer read
-// arbitrary local files via SQL (read_csv/COPY/ATTACH/extension loading), while
-// queries over the already-loaded in-memory tables keep working. DuckDB makes
-// this a one-way switch — it can't be re-enabled while the database is running,
-// so a SQL-tab user can't turn it back on.
+// HardenDuckDB disables external file/network access and then locks the
+// configuration. Call it once the export is fully loaded: after this, the
+// free-form SQL editor can no longer read arbitrary local files via SQL
+// (read_csv/COPY/ATTACH/extension loading), while queries over the
+// already-loaded in-memory tables keep working. DuckDB makes external access a
+// one-way switch — it can't be re-enabled while the database is running — and
+// lock_configuration additionally freezes every other setting, so a SQL-tab
+// user can't redirect writes (temp_directory, home_directory) or turn on
+// extension autoinstall either. Order matters: nothing can be SET after the
+// lock, so it must come last.
 func HardenDuckDB(db *sql.DB) error {
 	if _, err := db.Exec("SET enable_external_access=false"); err != nil {
 		return fmt.Errorf("disabling external access: %w", err)
+	}
+	if _, err := db.Exec("SET lock_configuration=true"); err != nil {
+		return fmt.Errorf("locking configuration: %w", err)
 	}
 	return nil
 }
@@ -122,6 +133,8 @@ func HardenDuckDB(db *sql.DB) error {
 // LoadCSVs loads CSVs from files into db, updating status as each table completes.
 // Missing CSV files are skipped (not all exports include all tables).
 // Errors loading individual tables are recorded in status but don't abort loading.
+// It does NOT mark the status ready — the caller does that via SetReady after
+// any post-load steps (in particular HardenDuckDB).
 func LoadCSVs(db *sql.DB, files ExtractedFiles, status *LoadStatus) {
 	total := float64(len(tableConfigs))
 	for i, cfg := range tableConfigs {
@@ -144,7 +157,6 @@ func LoadCSVs(db *sql.DB, files ExtractedFiles, status *LoadStatus) {
 		}
 		status.setProgress(float64(i+1) / total)
 	}
-	status.setReady()
 }
 
 // normalizeStmtStatsDB guarantees stmt_stats has a populated top-level `database`
