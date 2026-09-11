@@ -8,10 +8,24 @@
 // OF ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { SqlTab } from './SqlTab'
+import type { QueryDef } from '../../api'
+
+// The query catalog is now owned by App and passed in via props, so SqlTab no
+// longer fetches it (or surfaces a load error — App does).
+const queries: QueryDef[] = [
+  {
+    id: 'stmt-top-cpu',
+    category: 'Statements',
+    name: 'Top CPU Consumers',
+    description: 'Top CPU',
+    sql: 'SELECT cpu FROM stmt_stats LIMIT 25',
+    db_filter_expr: "json_extract_string(metadata, '$.db')",
+  },
+]
 
 const mockEditor = {
   getValue: vi.fn().mockReturnValue('SELECT 0'),
@@ -35,37 +49,10 @@ describe('SqlTab sidebar', () => {
     vi.clearAllMocks()
     mountEditor = true
     mockEditor.getValue.mockReturnValue('SELECT 0')
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      status: 200,
-      json: () =>
-        Promise.resolve([
-          {
-            id: 'stmt-top-cpu',
-            category: 'Statements',
-            name: 'Top CPU Consumers',
-            description: 'Top CPU',
-            sql: 'SELECT cpu FROM stmt_stats LIMIT 25',
-            db_filter_expr: "json_extract_string(metadata, '$.db')",
-          },
-        ]),
-    })
-  })
-
-  it('surfaces an error banner when the query list fails to load', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 500,
-      statusText: 'Internal Server Error',
-      json: () => Promise.reject(new SyntaxError('Unexpected token <')),
-    })
-    render(<SqlTab />)
-    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
   })
 
   it('appends query SQL with comment header when sidebar item clicked', async () => {
-    render(<SqlTab />)
-    await waitFor(() => screen.getByText('Top CPU Consumers'))
+    render(<SqlTab queries={queries} />)
     await userEvent.click(screen.getByText('Top CPU Consumers'))
     expect(mockEditor.setValue).toHaveBeenCalledWith(
       'SELECT 0\n\n-- Top CPU Consumers\nSELECT cpu FROM stmt_stats LIMIT 25'
@@ -74,8 +61,7 @@ describe('SqlTab sidebar', () => {
 
   it('does not call setValue if editor is not mounted', async () => {
     mountEditor = false
-    render(<SqlTab />)
-    await waitFor(() => screen.getByText('Top CPU Consumers'))
+    render(<SqlTab queries={queries} />)
     await userEvent.click(screen.getByText('Top CPU Consumers'))
     expect(mockEditor.setValue).not.toHaveBeenCalled()
   })

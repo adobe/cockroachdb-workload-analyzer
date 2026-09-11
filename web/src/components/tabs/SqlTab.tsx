@@ -8,14 +8,12 @@
 // OF ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef } from 'react'
 import { MonacoEditor } from '../MonacoEditor'
 import { ResultsTable } from '../ResultsTable'
 import { QueryList } from '../QueryList'
-import { ErrorBanner } from '../ErrorBanner'
 import { useRun } from '../../hooks/useRun'
-import { fetchQueriesFull } from '../../api'
-import type { QueryDefFull } from '../../api'
+import type { QueryDef } from '../../api'
 
 const DEFAULT_SQL = '-- Write your SQL here\n-- Ctrl+Enter or Cmd+Enter to run\nSELECT * FROM stmt_stats LIMIT 10'
 
@@ -28,30 +26,17 @@ const EDITOR_OPTIONS = {
 }
 
 interface Props {
+  queries: QueryDef[]
   onFingerprintClick?: (id: string) => void
 }
 
-export function SqlTab({ onFingerprintClick }: Props) {
+export function SqlTab({ queries, onFingerprintClick }: Props) {
   const { result, loading, run } = useRun()
   const editorRef = useRef<{
     getValue: () => string
     setValue: (v: string) => void
     addCommand: (keybinding: number, handler: () => void) => void
   } | null>(null)
-  const [queries, setQueries] = useState<QueryDefFull[]>([])
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetchQueriesFull()
-      .then(qs => {
-        setQueries(qs)
-        setError(null)
-      })
-      .catch(err => {
-        console.error(err)
-        setError("Couldn't load the saved queries. The server may be unavailable — try reloading.")
-      })
-  }, [])
 
   const handleMount = useCallback((editor: {
     getValue: () => string
@@ -85,7 +70,6 @@ export function SqlTab({ onFingerprintClick }: Props) {
   return (
     <div className="sql-tab">
       <div className="sql-sidebar">
-        <ErrorBanner message={error} onDismiss={() => setError(null)} />
         <QueryList queries={queries} activeId={null} onSelect={handleInsert} />
       </div>
       <div className="sql-editor-column">

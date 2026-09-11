@@ -37,11 +37,17 @@ export interface MetaResult {
   time_range?: TimeRange
 }
 
+// QueryDef mirrors the backend catalog.Query: identity/labels plus the SQL text
+// and an optional per-database filter expression. /api/queries returns all of
+// it; QueryList only reads the labels, the SQL tab uses `sql`, and the analysis
+// tab uses `db_filter_expr` to decide whether the database picker applies.
 export interface QueryDef {
   id: string
   category: string
   name: string
   description: string
+  sql: string
+  db_filter_expr?: string
 }
 
 export interface RunResult {
@@ -53,13 +59,6 @@ export interface RunResult {
 
 export interface SchemaResult {
   databases: Record<string, string>
-}
-
-// QueryDefFull is a QueryDef plus the fields the /api/queries?full=1 endpoint
-// adds: the SQL text and the optional per-database filter expression.
-export interface QueryDefFull extends QueryDef {
-  sql: string
-  db_filter_expr?: string
 }
 
 // ApiError is thrown for any non-2xx response so callers can distinguish a real
@@ -98,10 +97,6 @@ export function fetchMeta(): Promise<MetaResult> {
 
 export function fetchQueries(): Promise<QueryDef[]> {
   return requestJSON('/api/queries')
-}
-
-export function fetchQueriesFull(): Promise<QueryDefFull[]> {
-  return requestJSON('/api/queries?full=1')
 }
 
 export function fetchSchema(): Promise<SchemaResult> {

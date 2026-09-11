@@ -12,7 +12,6 @@ import { describe, expect, it, vi, beforeEach } from 'vitest'
 import {
   ApiError,
   fetchQueries,
-  fetchQueriesFull,
   fetchMeta,
   fetchSchema,
   fetchStatus,
@@ -38,7 +37,6 @@ describe('api res.ok enforcement', () => {
     ['fetchStatus', fetchStatus],
     ['fetchMeta', fetchMeta],
     ['fetchQueries', fetchQueries],
-    ['fetchQueriesFull', fetchQueriesFull],
     ['fetchSchema', fetchSchema],
     ['fetchDatabases', fetchDatabases],
     ['runQuery', () => runQuery('SELECT 1')],

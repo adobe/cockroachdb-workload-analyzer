@@ -32,19 +32,26 @@ export default function App() {
   const [selectedDb, setSelectedDb] = useState('')
   const [databases, setDatabases] = useState<string[]>([])
   const [clickedFingerprint, setClickedFingerprint] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [queriesError, setQueriesError] = useState<string | null>(null)
+  const [databasesError, setDatabasesError] = useState<string | null>(null)
 
+  // The query catalog is fetched once here and passed to both the Analysis and
+  // SQL tabs. Owning it in App means switching tabs never refetches it, and a
+  // single banner covers the failure instead of one per tab.
   useEffect(() => {
     fetchMeta().then(setMeta).catch(err => {
       // Meta is decorative (the top bar); don't block the app on it.
       console.error(err)
     })
-    fetchQueries().then(setQueries).catch(err => {
-      // This list is only a fast fallback for AnalysisTab, which fetches the
-      // full list itself and surfaces its own error banner. Staying silent here
-      // avoids showing two banners for the same failure.
-      console.error(err)
-    })
+    fetchQueries()
+      .then(qs => {
+        setQueries(qs)
+        setQueriesError(null)
+      })
+      .catch(err => {
+        console.error(err)
+        setQueriesError("Couldn't load the analysis queries. The server may be unavailable — try reloading.")
+      })
   }, [])
 
   useEffect(() => {
@@ -52,11 +59,11 @@ export default function App() {
       fetchDatabases()
         .then(dbs => {
           setDatabases(dbs)
-          setError(null)
+          setDatabasesError(null)
         })
         .catch(err => {
           console.error(err)
-          setError("Couldn't load the database list. The server may be unavailable — try reloading.")
+          setDatabasesError("Couldn't load the database list. The server may be unavailable — try reloading.")
         })
     }
   }, [status.state])
@@ -70,10 +77,23 @@ export default function App() {
     )
   }
 
+  // The query and database loads share one banner. Each keeps its own error
+  // state (so a later success clears only its own message), but we render a
+  // single alert: the specific message when one fails, a merged one when both
+  // do — rather than stacking two near-identical "server unavailable" banners.
+  const loadError =
+    queriesError && databasesError
+      ? "Couldn't load the analysis queries or the database list. The server may be unavailable — try reloading."
+      : queriesError ?? databasesError
+  const dismissLoadError = () => {
+    setQueriesError(null)
+    setDatabasesError(null)
+  }
+
   return (
     <div className="app">
       <MetaBar meta={meta} filename="workload export" />
-      <ErrorBanner message={error} onDismiss={() => setError(null)} />
+      <ErrorBanner message={loadError} onDismiss={dismissLoadError} />
       <MissingTablesBanner tables={status.tables} />
       <nav className="tab-bar">
         {(['analysis', 'sql', 'schema'] as Tab[]).map(t => (
@@ -97,7 +117,7 @@ export default function App() {
             onFingerprintClick={setClickedFingerprint}
           />
         )}
-        {tab === 'sql' && <SqlTab onFingerprintClick={setClickedFingerprint} />}
+        {tab === 'sql' && <SqlTab queries={queries} onFingerprintClick={setClickedFingerprint} />}
         {tab === 'schema' && <SchemaTab />}
       </main>
       <FingerprintDrawer

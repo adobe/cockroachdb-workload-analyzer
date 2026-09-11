@@ -9,11 +9,10 @@
 // governing permissions and limitations under the License.
 
 import { useEffect, useState } from 'react'
-import type { QueryDef, QueryDefFull, RunResult } from '../../api'
-import { fetchQueriesFull, runCatalogQuery } from '../../api'
+import type { QueryDef, RunResult } from '../../api'
+import { runCatalogQuery } from '../../api'
 import { QueryList } from '../QueryList'
 import { ResultsTable } from '../ResultsTable'
-import { ErrorBanner } from '../ErrorBanner'
 
 interface Props {
   queries: QueryDef[]
@@ -53,22 +52,8 @@ function QueryResult({
   return <ResultsTable result={result} loading={loading} onFingerprintClick={onFingerprintClick} />
 }
 
-export function AnalysisTab({ queries: queriesWithoutSQL, selectedDb, onFingerprintClick }: Props) {
-  const [queries, setQueries] = useState<QueryDefFull[]>([])
+export function AnalysisTab({ queries, selectedDb, onFingerprintClick }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [error, setError] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetchQueriesFull()
-      .then(qs => {
-        setQueries(qs)
-        setError(null)
-      })
-      .catch(err => {
-        console.error(err)
-        setError("Couldn't load the analysis queries. The server may be unavailable — try reloading.")
-      })
-  }, [])
 
   const active = queries.find(q => q.id === activeId)
   // Non-filterable queries ignore the selected database, so they should not
@@ -78,12 +63,11 @@ export function AnalysisTab({ queries: queriesWithoutSQL, selectedDb, onFingerpr
   return (
     <div className="analysis-tab">
       <QueryList
-        queries={queries.length ? queries : queriesWithoutSQL}
+        queries={queries}
         activeId={activeId}
         onSelect={setActiveId}
       />
       <div className="analysis-main">
-        <ErrorBanner message={error} onDismiss={() => setError(null)} />
         {active && (
           <div className="analysis-header">
             <h3>{active.name}</h3>

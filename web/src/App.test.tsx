@@ -43,6 +43,15 @@ describe('App fetch error surfacing', () => {
     vi.mocked(fetchDatabases).mockResolvedValue([])
   })
 
+  it('shows an error banner when the query catalog fails to load', async () => {
+    vi.mocked(fetchQueries).mockRejectedValue(new ApiError(503, 'Service Unavailable', '/api/queries'))
+    render(<App />)
+    await waitFor(() => {
+      const alert = screen.getByRole('alert')
+      expect(alert).toHaveTextContent(/quer/i)
+    })
+  })
+
   it('shows an error banner when the database list fails to load', async () => {
     vi.mocked(fetchDatabases).mockRejectedValue(new ApiError(503, 'Service Unavailable', '/api/databases'))
     render(<App />)
@@ -52,14 +61,16 @@ describe('App fetch error surfacing', () => {
     })
   })
 
-  it('stays silent when only the query list fails — AnalysisTab owns that error', async () => {
-    // App fetches the query list only as a fast fallback for AnalysisTab, which
-    // surfaces its own banner. App must not add a second banner for the same
-    // failure, so no alert should appear here.
+  it('merges both failures into a single banner when the query and database loads both fail', async () => {
     vi.mocked(fetchQueries).mockRejectedValue(new ApiError(503, 'Service Unavailable', '/api/queries'))
+    vi.mocked(fetchDatabases).mockRejectedValue(new ApiError(503, 'Service Unavailable', '/api/databases'))
     render(<App />)
-    await waitFor(() => expect(screen.getByText('analysis')).toBeInTheDocument())
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    await waitFor(() => {
+      const alerts = screen.getAllByRole('alert')
+      expect(alerts).toHaveLength(1)
+      expect(alerts[0]).toHaveTextContent(/quer/i)
+      expect(alerts[0]).toHaveTextContent(/database/i)
+    })
   })
 
   it('shows no error banner when every fetch succeeds', async () => {
