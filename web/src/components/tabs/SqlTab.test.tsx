@@ -11,7 +11,6 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import Editor from '@monaco-editor/react'
 import { SqlTab } from './SqlTab'
 
 const mockEditor = {
@@ -20,16 +19,21 @@ const mockEditor = {
   addCommand: vi.fn(),
 }
 
-vi.mock('@monaco-editor/react', () => ({
-  default: vi.fn(({ onMount }: { onMount?: (editor: unknown) => void }) => {
-    if (onMount) onMount(mockEditor)
-    return null
+// When false, the mock behaves like an editor that never finished mounting
+// (the real component fires onMount only from a mount-only effect).
+let mountEditor = true
+
+vi.mock('../MonacoEditor', () => ({
+  MonacoEditor: vi.fn(({ onMount }: { onMount?: (editor: unknown) => void }) => {
+    if (mountEditor && onMount) onMount(mockEditor)
+    return <></>
   }),
 }))
 
 describe('SqlTab sidebar', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mountEditor = true
     mockEditor.getValue.mockReturnValue('SELECT 0')
     globalThis.fetch = vi.fn().mockResolvedValue({
       json: () =>
@@ -56,7 +60,7 @@ describe('SqlTab sidebar', () => {
   })
 
   it('does not call setValue if editor is not mounted', async () => {
-    vi.mocked(Editor).mockImplementationOnce(() => null)
+    mountEditor = false
     render(<SqlTab />)
     await waitFor(() => screen.getByText('Top CPU Consumers'))
     await userEvent.click(screen.getByText('Top CPU Consumers'))
