@@ -70,21 +70,10 @@ func (h *Handler) handleMeta(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) handleQueries(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Query().Get("full") == "1" {
-		writeJSON(w, h.queries)
-		return
-	}
-	type queryView struct {
-		ID          string `json:"id"`
-		Category    string `json:"category"`
-		Name        string `json:"name"`
-		Description string `json:"description"`
-	}
-	out := make([]queryView, len(h.queries))
-	for i, q := range h.queries {
-		out[i] = queryView{ID: q.ID, Category: q.Category, Name: q.Name, Description: q.Description}
-	}
-	writeJSON(w, out)
+	// The catalog is returned in full (including SQL and any db_filter_expr).
+	// The web UI is the only consumer and needs the SQL for the editor and the
+	// filter expression for the database picker, so there is no stripped view.
+	writeJSON(w, h.queries)
 }
 
 func (h *Handler) handleDatabases(w http.ResponseWriter, r *http.Request) {

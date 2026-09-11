@@ -80,6 +80,13 @@ func TestHandleQueries_ReturnsAll(t *testing.T) {
 	if want := len(catalog.All()); len(queries) != want {
 		t.Errorf("expected %d queries, got %d", want, len(queries))
 	}
+	// The catalog is served in full: every query must carry its SQL text (the
+	// web SQL editor depends on it), not just id/name/description.
+	for _, q := range queries {
+		if sql, ok := q["sql"].(string); !ok || sql == "" {
+			t.Errorf("query %v missing sql text; want full catalog response", q["id"])
+		}
+	}
 }
 
 func TestHandleRun_ExecutesSQL(t *testing.T) {
