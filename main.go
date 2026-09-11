@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"syscall"
 
@@ -64,11 +65,14 @@ func main() {
 		log.Fatalf("extracting zip: %v", err)
 	}
 
-	db, err := loader.OpenDuckDB()
+	// The export database is a file in the same temp dir as the extracted
+	// CSVs: Store.Seal needs to reopen it read-only once loading is done, and
+	// DuckDB won't open an in-memory database read-only.
+	store, err := loader.OpenStore(filepath.Join(dest, "export.duckdb"))
 	if err != nil {
 		log.Fatalf("opening duckdb: %v", err)
 	}
-	defer db.Close()
+	defer store.Close()
 
 	meta, err := loader.ParseMeta(files)
 	if err != nil {
@@ -86,21 +90,22 @@ func main() {
 
 	go func() {
 		log.Println("loading tables into DuckDB...")
-		loader.LoadCSVs(db, files, status)
-		// Lock down file/network access now that the export is loaded, so the
-		// SQL editor can't read arbitrary local files via read_csv/COPY.
+		loader.LoadCSVs(store, files, status)
+		// Seal now that the export is loaded: reopen it read-only so DuckDB
+		// refuses any write from the SQL editor, and lock down file/network
+		// access so it can't read arbitrary local files via read_csv/COPY.
 		// SetReady comes after: the API refuses free-form SQL until "ready",
-		// so ready must imply hardened. If hardening fails we must not serve
-		// at all — marking ready anyway would hand the SQL editor an
+		// so ready must imply sealed. If sealing fails we must not serve at
+		// all — marking ready anyway would hand the SQL editor an
 		// unrestricted database, and nothing is persisted, so exiting is safe.
-		if err := loader.HardenDuckDB(db); err != nil {
-			log.Fatalf("could not harden DuckDB; refusing to serve unhardened: %v", err)
+		if err := store.Seal(); err != nil {
+			log.Fatalf("could not seal DuckDB read-only; refusing to serve unsealed: %v", err)
 		}
 		status.SetReady()
 		log.Println("all tables loaded — ready")
 	}()
 
-	h := api.New(db, status, catalog.All(), meta, schemas)
+	h := api.New(store, status, catalog.All(), meta, schemas)
 
 	ln, err := listenWithFallback(*port)
 	if err != nil {

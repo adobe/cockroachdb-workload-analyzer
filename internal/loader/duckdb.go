@@ -89,9 +89,9 @@ func (s *LoadStatus) setProgress(p float64) {
 }
 
 // SetReady marks loading complete. The caller flips this — not LoadCSVs —
-// because "ready" gates free-form SQL in the API: main calls HardenDuckDB
-// between LoadCSVs and SetReady, so "ready" also guarantees the database can
-// no longer read local files or reach the network.
+// because "ready" gates free-form SQL in the API: main calls Store.Seal
+// between LoadCSVs and SetReady, so "ready" also guarantees the database is
+// read-only and can no longer read local files or reach the network.
 func (s *LoadStatus) SetReady() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -99,23 +99,12 @@ func (s *LoadStatus) SetReady() {
 	s.progress = 1.0
 }
 
-// OpenDuckDB opens an in-memory DuckDB instance.
-func OpenDuckDB() (*sql.DB, error) {
-	db, err := sql.Open("duckdb", "")
-	if err != nil {
-		return nil, fmt.Errorf("opening duckdb: %w", err)
-	}
-	// DuckDB is single-connection; don't pool.
-	db.SetMaxOpenConns(1)
-	return db, nil
-}
-
 // HardenDuckDB disables external file/network access and then locks the
-// configuration. Call it once the export is fully loaded: after this, the
-// free-form SQL editor can no longer read arbitrary local files via SQL
-// (read_csv/COPY/ATTACH/extension loading), while queries over the
-// already-loaded in-memory tables keep working. DuckDB makes external access a
-// one-way switch — it can't be re-enabled while the database is running — and
+// configuration. Store.Seal applies it to the read-only handle it opens:
+// after this, the free-form SQL editor can no longer read arbitrary local
+// files via SQL (read_csv/COPY/ATTACH/extension loading), while queries over
+// the loaded tables keep working. DuckDB makes external access a one-way
+// switch — it can't be re-enabled while the database is running — and
 // lock_configuration additionally freezes every other setting, so a SQL-tab
 // user can't redirect writes (temp_directory, home_directory) or turn on
 // extension autoinstall either. Order matters: nothing can be SET after the
@@ -130,12 +119,18 @@ func HardenDuckDB(db *sql.DB) error {
 	return nil
 }
 
+// execer is the slice of *sql.DB (or *Store) the loader needs: it only ever
+// runs statements, never reads rows.
+type execer interface {
+	Exec(query string, args ...any) (sql.Result, error)
+}
+
 // LoadCSVs loads CSVs from files into db, updating status as each table completes.
 // Missing CSV files are skipped (not all exports include all tables).
 // Errors loading individual tables are recorded in status but don't abort loading.
 // It does NOT mark the status ready — the caller does that via SetReady after
-// any post-load steps (in particular HardenDuckDB).
-func LoadCSVs(db *sql.DB, files ExtractedFiles, status *LoadStatus) {
+// any post-load steps (in particular Store.Seal).
+func LoadCSVs(db execer, files ExtractedFiles, status *LoadStatus) {
 	total := float64(len(tableConfigs))
 	for i, cfg := range tableConfigs {
 		path, ok := files[cfg.csvName]
@@ -166,7 +161,7 @@ func LoadCSVs(db *sql.DB, files ExtractedFiles, status *LoadStatus) {
 // every catalog query's DBFilterExpr can rely on a single `database` column:
 //   - add the column if the export predates it, then
 //   - backfill any NULL/blank value from metadata.$.db.
-func normalizeStmtStatsDB(db *sql.DB) error {
+func normalizeStmtStatsDB(db execer) error {
 	if _, err := db.Exec(`ALTER TABLE stmt_stats ADD COLUMN IF NOT EXISTS database VARCHAR`); err != nil {
 		return fmt.Errorf("adding database column: %w", err)
 	}
@@ -181,7 +176,7 @@ func normalizeStmtStatsDB(db *sql.DB) error {
 	return nil
 }
 
-func loadCSVTable(db *sql.DB, tableName, csvPath string) error {
+func loadCSVTable(db execer, tableName, csvPath string) error {
 	// Use read_csv_auto for fast bulk loading with automatic type inference.
 	// ignore_errors skips malformed rows rather than aborting the whole load.
 	q := fmt.Sprintf(

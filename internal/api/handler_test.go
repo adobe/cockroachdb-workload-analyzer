@@ -18,6 +18,8 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -177,6 +179,55 @@ func TestHandleRun_CatalogQueryNotGatedWhileLoading(t *testing.T) {
 
 	if rr.Code == http.StatusServiceUnavailable {
 		t.Errorf("catalog query %s was refused by the loading gate; only free-form SQL should be", queryID)
+	}
+}
+
+// The README promises the SQL editor is read-only. That must hold end to end
+// through /api/run against a sealed store: a DROP TABLE is refused by DuckDB
+// itself, reported as a query error, and leaves the table in place.
+func TestHandleRun_WritesRefusedOnSealedStore(t *testing.T) {
+	store, err := loader.OpenStore(filepath.Join(t.TempDir(), "export.duckdb"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	if _, err := store.Exec("CREATE TABLE stmt_stats AS SELECT 'a' AS fingerprint"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Seal(); err != nil {
+		t.Fatalf("Seal: %v", err)
+	}
+	status := loader.NewLoadStatus()
+	status.SetReady()
+	h := api.New(store, status, catalog.All(), &loader.Meta{}, loader.Schemas{})
+	mux := http.NewServeMux()
+	h.Register(mux)
+
+	type runResult struct {
+		Rows  [][]any `json:"rows"`
+		Error string  `json:"error"`
+	}
+	run := func(sql string) runResult {
+		t.Helper()
+		req := httptest.NewRequest("POST", "/api/run", strings.NewReader(`{"sql":`+strconv.Quote(sql)+`}`))
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+		var resp runResult
+		if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("body not JSON: %v", err)
+		}
+		return resp
+	}
+
+	if resp := run("DROP TABLE stmt_stats"); resp.Error == "" {
+		t.Error("DROP TABLE succeeded through /api/run; the sealed store must refuse writes")
+	} else if !strings.Contains(resp.Error, "read-only") {
+		t.Errorf("DROP TABLE error should mention read-only, got: %s", resp.Error)
+	}
+	if resp := run("SELECT count(*) FROM stmt_stats"); resp.Error != "" {
+		t.Errorf("SELECT after refused DROP: %s", resp.Error)
+	} else if len(resp.Rows) != 1 {
+		t.Errorf("SELECT after refused DROP: rows = %v, want one row", resp.Rows)
 	}
 }
 
@@ -597,5 +648,64 @@ func TestHandleMeta_IncludesTimeRange(t *testing.T) {
 	}
 	if body.TimeRange.Start != "2026-05-28T19:00:00Z" || body.TimeRange.End != "2026-05-29T18:48:00Z" {
 		t.Errorf("time_range = %+v, want the export window", *body.TimeRange)
+	}
+}
+
+// A statement that fails inside an explicit BEGIN leaves the single DuckDB
+// connection in an aborted transaction, and every later request — catalog
+// queries included — fails with "Current transaction is aborted" until
+// someone types ROLLBACK. On a sealed store every write is refused, so this
+// is now trivial to hit by accident; the handler must recover on its own.
+func TestHandleRun_RecoversFromAbortedTransaction(t *testing.T) {
+	store, err := loader.OpenStore(filepath.Join(t.TempDir(), "export.duckdb"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+	if _, err := store.Exec("CREATE TABLE stmt_stats AS SELECT 'a' AS fingerprint, 'db1' AS database"); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Seal(); err != nil {
+		t.Fatalf("Seal: %v", err)
+	}
+	status := loader.NewLoadStatus()
+	status.SetReady()
+	h := api.New(store, status, catalog.All(), &loader.Meta{}, loader.Schemas{})
+	mux := http.NewServeMux()
+	h.Register(mux)
+
+	type runResult struct {
+		Rows  [][]any `json:"rows"`
+		Error string  `json:"error"`
+	}
+	run := func(sql string) runResult {
+		t.Helper()
+		req := httptest.NewRequest("POST", "/api/run", strings.NewReader(`{"sql":`+strconv.Quote(sql)+`}`))
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, req)
+		var resp runResult
+		if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+			t.Fatalf("body not JSON: %v", err)
+		}
+		return resp
+	}
+
+	for _, wedge := range []string{
+		"BEGIN; DROP TABLE stmt_stats; COMMIT",
+		"BEGIN; SELECT * FROM no_such_table",
+	} {
+		if resp := run(wedge); resp.Error == "" {
+			t.Fatalf("%q succeeded; expected an error", wedge)
+		}
+		if resp := run("SELECT count(*) FROM stmt_stats"); resp.Error != "" {
+			t.Errorf("after %q, SELECT failed: %s", wedge, resp.Error)
+		} else if len(resp.Rows) != 1 {
+			t.Errorf("after %q, SELECT rows = %v, want one row", wedge, resp.Rows)
+		}
+		rr := httptest.NewRecorder()
+		mux.ServeHTTP(rr, httptest.NewRequest("GET", "/api/databases", nil))
+		if rr.Code != http.StatusOK || strings.TrimSpace(rr.Body.String()) != `["db1"]` {
+			t.Errorf("after %q, /api/databases = %d %s, want 200 [\"db1\"]", wedge, rr.Code, rr.Body.String())
+		}
 	}
 }

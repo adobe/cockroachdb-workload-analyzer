@@ -13,13 +13,13 @@
 package main_test
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/adobe/cockroachdb-workload-analyzer/internal/catalog"
 	"github.com/adobe/cockroachdb-workload-analyzer/internal/loader"
-	_ "github.com/marcboeker/go-duckdb"
 )
 
 // Run with: CGO_ENABLED=1 go test -tags integration -v -run TestIntegration
@@ -37,18 +37,23 @@ func TestIntegration_AllQueriesRunClean(t *testing.T) {
 		t.Fatalf("ExtractZip: %v", err)
 	}
 
-	db, err := loader.OpenDuckDB()
+	store, err := loader.OpenStore(filepath.Join(dest, "export.duckdb"))
 	if err != nil {
-		t.Fatalf("OpenDuckDB: %v", err)
+		t.Fatalf("OpenStore: %v", err)
 	}
-	defer db.Close()
+	defer store.Close()
 
 	status := loader.NewLoadStatus()
-	loader.LoadCSVs(db, files, status)
+	loader.LoadCSVs(store, files, status)
+	// Run the catalog against the sealed (read-only, hardened) database, the
+	// way production serves it, so a catalog query that writes fails here.
+	if err := store.Seal(); err != nil {
+		t.Fatalf("Seal: %v", err)
+	}
 
 	for _, q := range catalog.All() {
 		t.Run(q.ID, func(t *testing.T) {
-			rows, err := db.Query(q.SQL)
+			rows, err := store.QueryContext(context.Background(), q.SQL)
 			if err != nil {
 				t.Errorf("query %s failed: %v", q.ID, err)
 				return

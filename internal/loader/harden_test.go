@@ -10,16 +10,29 @@
 
 package loader
 
-import "testing"
+import (
+	"database/sql"
+	"testing"
+)
+
+// memDB opens a throwaway in-memory DuckDB. Production uses a file-backed
+// Store (see store.go); these tests only exercise the settings HardenDuckDB
+// applies, which behave the same either way.
+func memDB(t *testing.T) *sql.DB {
+	t.Helper()
+	db, err := sql.Open("duckdb", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { db.Close() })
+	return db
+}
 
 // After the export is loaded, HardenDuckDB must block arbitrary local file
 // access from SQL (read_csv/COPY/ATTACH) while leaving in-memory queries working.
 func TestHardenDuckDB_BlocksExternalFileAccess(t *testing.T) {
-	db, err := OpenDuckDB()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db := memDB(t)
 	if _, err := db.Exec("CREATE TABLE t AS SELECT 1 AS a"); err != nil {
 		t.Fatal(err)
 	}
@@ -44,11 +57,7 @@ func TestHardenDuckDB_BlocksExternalFileAccess(t *testing.T) {
 // undo the hardening or change any other setting once it is in place. Each of
 // these is pinned so a DuckDB upgrade that relaxes the behavior fails loudly.
 func TestHardenDuckDB_IsOneWayAndLocksConfiguration(t *testing.T) {
-	db, err := OpenDuckDB()
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer db.Close()
+	db := memDB(t)
 	if err := HardenDuckDB(db); err != nil {
 		t.Fatalf("harden: %v", err)
 	}

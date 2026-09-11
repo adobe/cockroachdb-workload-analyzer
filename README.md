@@ -119,7 +119,7 @@ Binary layout:
 - **Native DuckDB** (`github.com/marcboeker/go-duckdb` via CGo) — avoids WASM memory limits, reads CSVs directly with `read_csv_auto`.
 - **Progressive loading** — the server starts as soon as the zip is extracted; the large `statement_statistics.csv` loads last in a background goroutine. The UI polls `/api/status` and shows progress.
 - **Single binary** — `go:embed all:web/dist` bundles the compiled SPA. One file to distribute, no runtime dependencies.
-- **Read-only** — all DuckDB queries are read-only. The tool never writes back to any cluster.
+- **Read-only** — once loaded, the export database is reopened in DuckDB's read-only mode, so the engine itself refuses any statement that would change it. The tool never writes back to any cluster.
 
 ## Security & trust model
 
@@ -127,8 +127,9 @@ The tool runs **locally, on your own machine, against your own export**. The fre
 
 - **Loopback only** — the HTTP server binds to `127.0.0.1`, so `/api/run` is not reachable from the network.
 - **Cross-site requests refused** — loopback binding alone doesn't stop your own browser: any website you visit can fire cross-origin requests at `http://localhost:<port>`. The server rejects requests whose `Origin` is not a loopback origin (CSRF) and requests whose `Host` header is not a loopback name (DNS rebinding).
-- **No file access after load** — once the export is loaded, DuckDB's `enable_external_access` is switched off (a one-way switch DuckDB won't let a query re-enable) and the configuration is locked with `lock_configuration`, so no setting can be changed from SQL afterwards. The SQL editor can run arbitrary *read-only, in-memory* SQL over the loaded tables, but can't read other files on disk via `read_csv`/`COPY`/`ATTACH`. Free-form SQL is refused until this lockdown is in place — "ready" means *loaded and hardened* — so there is no window where user-supplied SQL runs with file access enabled.
-- **In-memory & read-only** — nothing is written back to any cluster; all data lives in the in-memory DuckDB and is discarded on exit.
+- **Read-only after load** — the export is loaded into a DuckDB database file in the same per-run temp directory as the extracted CSVs. Once loading completes, that file is closed and reopened with `access_mode=read_only`, so DuckDB itself rejects `DROP`, `INSERT`, `UPDATE`, `ALTER`, `CREATE`, `ATTACH` and every other statement that would change the export — this is enforced by the engine, not by filtering SQL text. Scratch `CREATE TEMP TABLE`s are still allowed; they live outside the export and vanish with the session. (DuckDB can't switch a running database to read-only and won't open an in-memory one read-only at all, which is why the export lives in a file rather than in memory.)
+- **No file access after load** — at the same time, DuckDB's `enable_external_access` is switched off (a one-way switch DuckDB won't let a query re-enable) and the configuration is locked with `lock_configuration`, so no setting can be changed from SQL afterwards. The SQL editor can run arbitrary *read-only* SQL over the loaded tables, but can't read other files on disk via `read_csv`/`COPY`/`ATTACH`. Free-form SQL is refused until this lockdown is in place — "ready" means *loaded, read-only and hardened* — so there is no window where user-supplied SQL runs with write or file access.
+- **Local & ephemeral** — nothing is written back to any cluster; the extracted CSVs and the DuckDB file live only in a temp directory that is removed on exit.
 
 ## Prerequisites
 

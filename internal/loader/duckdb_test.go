@@ -18,18 +18,6 @@ import (
 	"github.com/adobe/cockroachdb-workload-analyzer/internal/loader"
 )
 
-func TestOpenDuckDB_InMemory(t *testing.T) {
-	db, err := loader.OpenDuckDB()
-	if err != nil {
-		t.Fatalf("OpenDuckDB: %v", err)
-	}
-	defer db.Close()
-
-	if err := db.Ping(); err != nil {
-		t.Errorf("Ping: %v", err)
-	}
-}
-
 func TestLoadCSVs_LoadsTable(t *testing.T) {
 	csvPath := filepath.Join(t.TempDir(), "crdb_internal.cluster_settings.csv")
 	os.WriteFile(csvPath, []byte("variable,value,default_value\nfoo,bar,baz\n"), 0o644)
@@ -38,30 +26,24 @@ func TestLoadCSVs_LoadsTable(t *testing.T) {
 		"crdb_internal.cluster_settings.csv": csvPath,
 	}
 
-	db, _ := loader.OpenDuckDB()
-	defer db.Close()
-
+	s := openStore(t)
 	status := loader.NewLoadStatus()
-	loader.LoadCSVs(db, files, status)
+	loader.LoadCSVs(s, files, status)
 
-	var count int
-	db.QueryRow("SELECT COUNT(*) FROM cluster_settings").Scan(&count)
-	if count != 1 {
-		t.Errorf("expected 1 row in cluster_settings, got %d", count)
+	if n := countRows(t, s, "cluster_settings"); n != 1 {
+		t.Errorf("expected 1 row in cluster_settings, got %d", n)
 	}
 }
 
-// LoadCSVs must NOT flip the status to ready itself: main hardens DuckDB
-// (disabling external file/network access) between loading and SetReady, so
-// "ready" also guarantees the SQL editor can no longer touch the filesystem.
-// If LoadCSVs marked ready directly, free-form SQL would be allowed during
-// that unhardened window.
+// LoadCSVs must NOT flip the status to ready itself: main seals the store
+// (reopening it read-only and disabling external file/network access)
+// between loading and SetReady, so "ready" also guarantees the SQL editor
+// can neither modify the export nor touch the filesystem. If LoadCSVs marked
+// ready directly, free-form SQL would be allowed during that unsealed window.
 func TestLoadCSVs_ReadyOnlyAfterSetReady(t *testing.T) {
-	db, _ := loader.OpenDuckDB()
-	defer db.Close()
-
+	s := openStore(t)
 	status := loader.NewLoadStatus()
-	loader.LoadCSVs(db, loader.ExtractedFiles{}, status)
+	loader.LoadCSVs(s, loader.ExtractedFiles{}, status)
 
 	if status.State() != "loading" {
 		t.Errorf("state after LoadCSVs = %q, want 'loading' (ready is the caller's call, after hardening)", status.State())
