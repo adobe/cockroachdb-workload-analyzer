@@ -8,8 +8,8 @@
 // OF ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
-import Editor, { type OnMount } from '@monaco-editor/react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { MonacoEditor } from '../MonacoEditor'
 import { ResultsTable } from '../ResultsTable'
 import { QueryList } from '../QueryList'
 import { useRun } from '../../hooks/useRun'
@@ -22,8 +22,6 @@ interface QueryWithSQL extends QueryDef {
 
 const DEFAULT_SQL = '-- Write your SQL here\n-- Ctrl+Enter or Cmd+Enter to run\nSELECT * FROM stmt_stats LIMIT 10'
 
-// Stable options object — defined outside the component so it never changes
-// reference across renders (prevents unnecessary Monaco re-mounts in tests).
 const EDITOR_OPTIONS = {
   minimap: { enabled: false },
   fontSize: 13,
@@ -31,10 +29,6 @@ const EDITOR_OPTIONS = {
   scrollBeyondLastLine: false,
   wordWrap: 'on' as const,
 }
-
-// Memoized wrapper so Monaco doesn't re-render (and re-fire onMount) when
-// parent state like `queries` changes — props of the editor never change.
-const MemoEditor = memo(Editor)
 
 interface Props {
   onFingerprintClick?: (id: string) => void
@@ -56,7 +50,11 @@ export function SqlTab({ onFingerprintClick }: Props) {
       .catch(() => {})
   }, [])
 
-  const handleMount: OnMount = useCallback((editor) => {
+  const handleMount = useCallback((editor: {
+    getValue: () => string
+    setValue: (v: string) => void
+    addCommand: (keybinding: number, handler: () => void) => void
+  }) => {
     editorRef.current = editor
 
     editor.addCommand(
@@ -88,7 +86,7 @@ export function SqlTab({ onFingerprintClick }: Props) {
       </div>
       <div className="sql-editor-column">
         <div className="sql-editor-area">
-          <MemoEditor
+          <MonacoEditor
             defaultLanguage="sql"
             defaultValue={DEFAULT_SQL}
             theme="vs-dark"
