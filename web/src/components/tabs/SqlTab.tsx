@@ -8,7 +8,7 @@
 // OF ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { MonacoEditor } from '../MonacoEditor'
 import { ResultsTable } from '../ResultsTable'
 import { QueryList } from '../QueryList'
@@ -37,7 +37,22 @@ interface Props {
 
 export function SqlTab({ queries, theme, onFingerprintClick }: Props) {
   const { result, loading, run } = useRun()
-  const monacoTheme = ensureMonacoTheme(theme)
+  // Lazily initialized so the first mount reads fresh tokens (data-theme is
+  // already set by then, via the bootstrap script or useTheme's layout
+  // effect). Re-registered in a passive effect on theme change, after
+  // useTheme's layout effect has flipped data-theme for the new theme, so
+  // this never reads stale colors.
+  const [monacoTheme, setMonacoTheme] = useState(() => ensureMonacoTheme(theme))
+  useEffect(() => {
+    // ensureMonacoTheme is a call into an external system (it registers a
+    // theme in Monaco's global registry from current computed-style tokens);
+    // mirroring its return value into state is the effect synchronizing with
+    // that system, not a derivable-in-render value. Computing it in render
+    // instead would reintroduce the bug this effect fixes: render runs
+    // before useTheme's layout effect flips data-theme for the new theme.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMonacoTheme(ensureMonacoTheme(theme))
+  }, [theme])
   const editorRef = useRef<{
     getValue: () => string
     setValue: (v: string) => void

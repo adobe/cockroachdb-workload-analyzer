@@ -11,10 +11,12 @@
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { act, renderHook } from '@testing-library/react'
+import { createElement, useEffect } from 'react'
+import { act, render, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { useTheme } from './useTheme'
 import { CONTRAST_QUERY, LIGHT_QUERY, STORAGE_KEY, readPreference, resolveTheme } from '../theme'
+import type { ThemePreference } from '../theme'
 import { installMatchMedia } from '../test/matchMedia'
 
 let media: ReturnType<typeof installMatchMedia>
@@ -84,6 +86,33 @@ describe('useTheme', () => {
     delete window.matchMedia
     const { result } = renderHook(() => useTheme())
     expect(result.current.theme).toBe('dark')
+  })
+
+  it('applies the theme before descendants\' passive effects run', () => {
+    // This file is .ts, not .tsx, so JSX doesn't parse here; build the
+    // element tree with createElement instead.
+    const recorded: Array<string | undefined> = []
+    let setPreference: (p: ThemePreference) => void = () => {}
+
+    function Child() {
+      // A passive effect: if useTheme applied the theme from one of its own
+      // passive effects, ordering between siblings/children would be
+      // unspecified and this could observe the previous data-theme.
+      useEffect(() => {
+        recorded.push(document.documentElement.dataset.theme)
+      })
+      return null
+    }
+
+    function Harness() {
+      const { setPreference: set } = useTheme()
+      setPreference = set
+      return createElement(Child)
+    }
+
+    render(createElement(Harness))
+    act(() => setPreference('light-hc'))
+    expect(recorded.at(-1)).toBe('light-hc')
   })
 })
 

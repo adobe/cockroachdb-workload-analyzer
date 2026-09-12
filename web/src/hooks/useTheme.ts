@@ -8,7 +8,7 @@
 // OF ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react'
 import {
   applyTheme, readPreference, systemTheme, writePreference,
   CONTRAST_QUERY, LIGHT_QUERY,
@@ -43,7 +43,13 @@ export function useTheme(): {
 
   const theme: ThemeName = preference === 'system' ? system : preference
 
-  useEffect(() => {
+  // A layout effect, not a passive one: React fires passive effects
+  // children-first, so a descendant's passive effect (e.g. Monaco's
+  // setTheme, or SqlTab registering a Monaco theme from live tokens) could
+  // otherwise run before data-theme is flipped and read stale colors.
+  // Layout effects fire parent-first during commit, before any passive
+  // effect anywhere in the tree runs.
+  useLayoutEffect(() => {
     applyTheme(document.documentElement, theme)
   }, [theme])
 
