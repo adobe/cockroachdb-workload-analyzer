@@ -25,6 +25,18 @@ function token(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim()
 }
 
+// Chrome serializes custom-property hex in shortest form (#000000 -> #000);
+// Monaco's token theme accepts only 6- or 8-digit hex. Expand short forms.
+export function normalizeHex(value: string): string {
+  const m = /^#([0-9a-fA-F]{3,4})$/.exec(value.trim())
+  if (!m) return value.trim()
+  return '#' + [...m[1]].map(c => c + c).join('')
+}
+
+function color(name: string): string {
+  return normalizeHex(token(name))
+}
+
 export function monacoThemeName(theme: ThemeName): string {
   return `wa-${theme}`
 }
@@ -40,13 +52,13 @@ export function ensureMonacoTheme(theme: ThemeName): string {
     inherit: true,
     rules: [],
     colors: {
-      'editor.background': token('--bg-base'),
-      'editor.foreground': token('--text-primary'),
-      'editorLineNumber.foreground': token('--text-muted'),
-      'editor.lineHighlightBackground': token('--bg-surface'),
-      'editor.selectionBackground': token('--bg-selected'),
-      'editorCursor.foreground': token('--accent'),
-      focusBorder: token('--focus-ring'),
+      'editor.background': color('--bg-base'),
+      'editor.foreground': color('--text-primary'),
+      'editorLineNumber.foreground': color('--text-muted'),
+      'editor.lineHighlightBackground': color('--bg-surface'),
+      'editor.selectionBackground': color('--bg-selected'),
+      'editorCursor.foreground': color('--accent'),
+      focusBorder: color('--focus-ring'),
     },
   })
   return name

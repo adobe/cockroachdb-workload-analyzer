@@ -17,7 +17,7 @@ vi.mock('monaco-editor/esm/vs/editor/editor.api.js', () => ({
   editor: { defineTheme },
 }))
 
-import { editorFontOptions, ensureMonacoTheme } from './monacoThemes'
+import { editorFontOptions, ensureMonacoTheme, normalizeHex } from './monacoThemes'
 
 function setTokens(vars: Record<string, string>) {
   const root = document.documentElement
@@ -65,6 +65,41 @@ describe('ensureMonacoTheme', () => {
     ensureMonacoTheme('dark')
     expect(defineTheme).toHaveBeenCalledTimes(2)
     expect((defineTheme.mock.calls[1][1] as { colors: Record<string, string> }).colors['editor.background']).toBe('#000000')
+  })
+})
+
+describe('normalizeHex', () => {
+  it('expands 3- and 4-digit hex to 6- and 8-digit', () => {
+    expect(normalizeHex('#fff')).toBe('#ffffff')
+    expect(normalizeHex('#000')).toBe('#000000')
+    expect(normalizeHex('#abcd')).toBe('#aabbccdd')
+  })
+
+  it('leaves already-expanded hex unchanged', () => {
+    expect(normalizeHex('#3fd1bc')).toBe('#3fd1bc')
+    expect(normalizeHex('#3fd1bc80')).toBe('#3fd1bc80')
+  })
+
+  it('trims surrounding whitespace', () => {
+    expect(normalizeHex('  #fff  ')).toBe('#ffffff')
+  })
+
+  it('returns a non-hex value trimmed and unchanged', () => {
+    expect(normalizeHex('  ui-monospace, Menlo, monospace  ')).toBe('ui-monospace, Menlo, monospace')
+  })
+})
+
+describe('ensureMonacoTheme with Chrome-style short hex', () => {
+  it('expands short hex tokens before handing them to Monaco', () => {
+    setTokens({ '--bg-base': '#fff', '--text-primary': '#000', '--focus-ring': '#000' })
+    ensureMonacoTheme('light-hc')
+    expect(defineTheme).toHaveBeenCalledWith('wa-light-hc', expect.objectContaining({
+      colors: expect.objectContaining({
+        'editor.background': '#ffffff',
+        'editor.foreground': '#000000',
+        'focusBorder': '#000000',
+      }),
+    }))
   })
 })
 
