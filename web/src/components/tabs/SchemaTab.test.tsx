@@ -8,33 +8,34 @@
 // OF ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 
-import { render, screen, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 import { SchemaTab } from './SchemaTab'
 
-vi.mock('../../api', () => ({
-  fetchSchema: vi.fn(),
-}))
-
-import { fetchSchema } from '../../api'
-
+// The database picker and the schema fetch live in App (useSchema), so this
+// component only renders what it is given.
 describe('SchemaTab', () => {
-  beforeEach(() => {
-    vi.mocked(fetchSchema).mockResolvedValue({
-      databases: { prod: 'CREATE TABLE prod ...', staging: 'CREATE TABLE staging ...' },
-    })
+  it('renders the DDL it is given', () => {
+    render(<SchemaTab ddl="CREATE TABLE prod ..." error={null} onDismissError={() => {}} />)
+    expect(screen.getByText('CREATE TABLE prod ...')).toBeInTheDocument()
   })
 
-  it('labels the database select for assistive tech', async () => {
-    render(<SchemaTab />)
-    await waitFor(() =>
-      expect(screen.getByRole('combobox', { name: /database/i })).toBeInTheDocument(),
-    )
+  it('shows a loading placeholder until the DDL arrives', () => {
+    render(<SchemaTab ddl={null} error={null} onDismissError={() => {}} />)
+    expect(screen.getByText('Loading...')).toBeInTheDocument()
   })
 
-  it('surfaces an error banner when the schema fails to load', async () => {
-    vi.mocked(fetchSchema).mockRejectedValue(new Error('boom'))
-    render(<SchemaTab />)
-    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument())
+  it('renders no picker of its own', () => {
+    render(<SchemaTab ddl="x" error={null} onDismissError={() => {}} />)
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument()
+  })
+
+  it('surfaces the error banner and forwards dismissal', async () => {
+    const onDismissError = vi.fn()
+    render(<SchemaTab ddl={null} error="Couldn't load the schema." onDismissError={onDismissError} />)
+    expect(screen.getByRole('alert')).toHaveTextContent(/schema/i)
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(onDismissError).toHaveBeenCalledTimes(1)
   })
 })

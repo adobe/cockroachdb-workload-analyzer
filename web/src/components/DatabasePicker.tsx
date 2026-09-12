@@ -12,17 +12,21 @@ interface Props {
   databases: string[]
   selected: string
   onSelect: (db: string) => void
+  // The Analysis and SQL tabs filter by database, so they offer "All".
+  // The Schema tab shows one database's DDL at a time, so it does not.
+  allowAll?: boolean
+  ariaLabel?: string
 }
 
-export function DatabasePicker({ databases, selected, onSelect }: Props) {
+export function DatabasePicker({ databases, selected, onSelect, allowAll = true, ariaLabel = 'Filter by database' }: Props) {
   return (
     <select
       className="db-picker"
-      aria-label="Filter by database"
+      aria-label={ariaLabel}
       value={selected}
       onChange={e => onSelect(e.target.value)}
     >
-      <option value="">All databases</option>
+      {allowAll && <option value="">All databases</option>}
       {databases.map(db => (
         <option key={db} value={db}>{db}</option>
       ))}

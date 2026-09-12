@@ -8,46 +8,22 @@
 // OF ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 
-import { useEffect, useState } from 'react'
-import { fetchSchema } from '../../api'
-import type { SchemaResult } from '../../api'
 import { ErrorBanner } from '../ErrorBanner'
 
-export function SchemaTab() {
-  const [schema, setSchema] = useState<SchemaResult | null>(null)
-  const [selected, setSelected] = useState<string>('')
-  const [error, setError] = useState<string | null>(null)
+interface Props {
+  ddl: string | null
+  error: string | null
+  onDismissError: () => void
+}
 
-  useEffect(() => {
-    fetchSchema().then(s => {
-      setSchema(s)
-      setError(null)
-      const first = Object.keys(s.databases)[0]
-      if (first) setSelected(first)
-    }).catch(err => {
-      console.error(err)
-      setError("Couldn't load the schema. The server may be unavailable — try reloading.")
-    })
-  }, [])
-
-  const databases = schema ? Object.keys(schema.databases).sort() : []
-
+// The schema fetch and the database picker live in App (see useSchema), so
+// the picker sits in the tab bar where the other tabs' picker is. This
+// component only renders the selected database's DDL.
+export function SchemaTab({ ddl, error, onDismissError }: Props) {
   return (
     <div className="schema-tab">
-      <ErrorBanner message={error} onDismiss={() => setError(null)} />
-      <div className="schema-toolbar">
-        <select
-          value={selected}
-          onChange={e => setSelected(e.target.value)}
-          className="schema-select"
-          aria-label="Select database schema"
-        >
-          {databases.map(db => <option key={db} value={db}>{db}</option>)}
-        </select>
-      </div>
-      <pre className="schema-content">
-        {schema?.databases[selected] ?? 'Loading...'}
-      </pre>
+      <ErrorBanner message={error} onDismiss={onDismissError} />
+      <pre className="schema-content">{ddl ?? 'Loading...'}</pre>
     </div>
   )
 }

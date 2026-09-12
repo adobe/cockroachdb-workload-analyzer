@@ -25,8 +25,8 @@ governing permissions and limitations under the License.
 .meta-sep { color: var(--text-muted); }
 .meta-bar-actions { margin-left: auto; display: flex; align-items: center; gap: var(--space-2); }
 
-/* Native selects: database picker, schema table picker, theme select */
-.db-picker, .schema-select, .theme-select {
+/* Native selects: database picker (statistics filter or schema list), theme select */
+.db-picker, .theme-select {
   background: var(--bg-surface); color: var(--text-primary);
   border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
   padding: var(--space-1) var(--space-2); font-size: var(--text-sm); cursor: pointer;
@@ -164,7 +164,6 @@ governing permissions and limitations under the License.
 
 /* Schema tab */
 .schema-tab { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
-.schema-toolbar { padding: var(--space-2) var(--space-3); background: var(--bg-surface); border-bottom: 1px solid var(--border-subtle); }
 .schema-content { flex: 1; overflow: auto; padding: var(--space-4); font-size: var(--text-sm); line-height: 1.5; color: var(--text-primary); }
 
 /* Fingerprint links and drawer */

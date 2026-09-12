@@ -18,6 +18,7 @@ import { FingerprintDrawer } from './components/FingerprintDrawer'
 import { MissingTablesBanner } from './components/MissingTablesBanner'
 import { ErrorBanner } from './components/ErrorBanner'
 import { useStatus } from './hooks/useStatus'
+import { useSchema } from './hooks/useSchema'
 import { useTheme } from './hooks/useTheme'
 import { ThemeSelect } from './components/ThemeSelect'
 import { AnalysisTab } from './components/tabs/AnalysisTab'
@@ -37,6 +38,9 @@ export default function App() {
   const [clickedFingerprint, setClickedFingerprint] = useState<string | null>(null)
   const [queriesError, setQueriesError] = useState<string | null>(null)
   const [databasesError, setDatabasesError] = useState<string | null>(null)
+  // Fetched lazily the first time the Schema tab opens; its picker shares the
+  // tab-bar slot with the statistics filter but keeps its own list and choice.
+  const schema = useSchema(tab === 'schema')
 
   // The query catalog is fetched once here and passed to both the Analysis and
   // SQL tabs. Owning it in App means switching tabs never refetches it, and a
@@ -112,8 +116,20 @@ export default function App() {
             {t.charAt(0).toUpperCase() + t.slice(1)}
           </button>
         ))}
-        {databases.length > 0 && tab !== 'schema' && (
-          <DatabasePicker databases={databases} selected={selectedDb} onSelect={setSelectedDb} />
+        {tab === 'schema' ? (
+          schema.databases.length > 0 && (
+            <DatabasePicker
+              databases={schema.databases}
+              selected={schema.selected}
+              onSelect={schema.setSelected}
+              allowAll={false}
+              ariaLabel="Select database schema"
+            />
+          )
+        ) : (
+          databases.length > 0 && (
+            <DatabasePicker databases={databases} selected={selectedDb} onSelect={setSelectedDb} />
+          )
         )}
       </nav>
       <main className="tab-content">
@@ -125,7 +141,9 @@ export default function App() {
           />
         )}
         {tab === 'sql' && <SqlTab queries={queries} theme={theme} onFingerprintClick={setClickedFingerprint} />}
-        {tab === 'schema' && <SchemaTab />}
+        {tab === 'schema' && (
+          <SchemaTab ddl={schema.ddl} error={schema.error} onDismissError={schema.dismissError} />
+        )}
       </main>
       <FingerprintDrawer
         fingerprint={clickedFingerprint}
