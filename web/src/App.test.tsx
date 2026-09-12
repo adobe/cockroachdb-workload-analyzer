@@ -12,6 +12,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import App from './App'
 import { ApiError, fetchMeta, fetchQueries, fetchDatabases } from './api'
+import { installMatchMedia } from './test/matchMedia'
 
 vi.mock('./api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./api')>()
@@ -34,6 +35,7 @@ vi.mock('./components/tabs/SchemaTab', () => ({ SchemaTab: () => <div>schema</di
 
 describe('App fetch error surfacing', () => {
   beforeEach(() => {
+    installMatchMedia()
     vi.clearAllMocks()
     vi.mocked(fetchMeta).mockResolvedValue({
       version: '1', timestamp: '', cluster_version: '', cluster_id: '',

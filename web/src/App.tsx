@@ -18,6 +18,8 @@ import { FingerprintDrawer } from './components/FingerprintDrawer'
 import { MissingTablesBanner } from './components/MissingTablesBanner'
 import { ErrorBanner } from './components/ErrorBanner'
 import { useStatus } from './hooks/useStatus'
+import { useTheme } from './hooks/useTheme'
+import { ThemeSelect } from './components/ThemeSelect'
 import { AnalysisTab } from './components/tabs/AnalysisTab'
 import { SqlTab } from './components/tabs/SqlTab'
 import { SchemaTab } from './components/tabs/SchemaTab'
@@ -26,6 +28,7 @@ type Tab = 'analysis' | 'sql' | 'schema'
 
 export default function App() {
   const status = useStatus()
+  const { theme, preference, setPreference } = useTheme()
   const [tab, setTab] = useState<Tab>('analysis')
   const [meta, setMeta] = useState<MetaResult | null>(null)
   const [queries, setQueries] = useState<QueryDef[]>([])
@@ -71,7 +74,9 @@ export default function App() {
   if (status.state === 'loading') {
     return (
       <div className="app">
-        <MetaBar meta={meta} filename="workload export" />
+        <MetaBar meta={meta} filename="workload export">
+          <ThemeSelect preference={preference} theme={theme} onChange={setPreference} />
+        </MetaBar>
         <LoadingScreen status={status} />
       </div>
     )
@@ -92,7 +97,9 @@ export default function App() {
 
   return (
     <div className="app">
-      <MetaBar meta={meta} filename="workload export" />
+      <MetaBar meta={meta} filename="workload export">
+        <ThemeSelect preference={preference} theme={theme} onChange={setPreference} />
+      </MetaBar>
       <ErrorBanner message={loadError} onDismiss={dismissLoadError} />
       <MissingTablesBanner tables={status.tables} />
       <nav className="tab-bar">
@@ -117,7 +124,7 @@ export default function App() {
             onFingerprintClick={setClickedFingerprint}
           />
         )}
-        {tab === 'sql' && <SqlTab queries={queries} onFingerprintClick={setClickedFingerprint} />}
+        {tab === 'sql' && <SqlTab queries={queries} theme={theme} onFingerprintClick={setClickedFingerprint} />}
         {tab === 'schema' && <SchemaTab />}
       </main>
       <FingerprintDrawer

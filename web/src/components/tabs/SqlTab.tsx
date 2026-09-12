@@ -14,6 +14,7 @@ import { ResultsTable } from '../ResultsTable'
 import { QueryList } from '../QueryList'
 import { useRun } from '../../hooks/useRun'
 import type { QueryDef } from '../../api'
+import type { ThemeName } from '../../theme'
 
 const DEFAULT_SQL = '-- Write your SQL here\n-- Ctrl+Enter or Cmd+Enter to run\nSELECT * FROM stmt_stats LIMIT 10'
 
@@ -27,6 +28,7 @@ const EDITOR_OPTIONS = {
 
 interface Props {
   queries: QueryDef[]
+  theme: ThemeName
   onFingerprintClick?: (id: string) => void
 }
 

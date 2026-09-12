@@ -52,7 +52,7 @@ describe('SqlTab sidebar', () => {
   })
 
   it('appends query SQL with comment header when sidebar item clicked', async () => {
-    render(<SqlTab queries={queries} />)
+    render(<SqlTab queries={queries} theme="dark" />)
     await userEvent.click(screen.getByText('Top CPU Consumers'))
     expect(mockEditor.setValue).toHaveBeenCalledWith(
       'SELECT 0\n\n-- Top CPU Consumers\nSELECT cpu FROM stmt_stats LIMIT 25'
@@ -61,7 +61,7 @@ describe('SqlTab sidebar', () => {
 
   it('does not call setValue if editor is not mounted', async () => {
     mountEditor = false
-    render(<SqlTab queries={queries} />)
+    render(<SqlTab queries={queries} theme="dark" />)
     await userEvent.click(screen.getByText('Top CPU Consumers'))
     expect(mockEditor.setValue).not.toHaveBeenCalled()
   })

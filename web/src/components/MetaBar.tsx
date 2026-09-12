@@ -8,15 +8,17 @@
 // OF ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 
+import type { ReactNode } from 'react'
 import type { MetaResult } from '../api'
 import { formatTimeRange } from '../format'
 
 interface Props {
   meta: MetaResult | null
   filename: string
+  children?: ReactNode
 }
 
-export function MetaBar({ meta, filename }: Props) {
+export function MetaBar({ meta, filename, children }: Props) {
   return (
     <div className="meta-bar">
       <span className="meta-filename">{filename}</span>
@@ -43,6 +45,7 @@ export function MetaBar({ meta, filename }: Props) {
           )}
         </>
       )}
+      {children && <span className="meta-bar-actions">{children}</span>}
     </div>
   )
 }
