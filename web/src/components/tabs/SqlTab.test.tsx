@@ -12,6 +12,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import { SqlTab } from './SqlTab'
+import { MonacoEditor } from '../MonacoEditor'
 import type { QueryDef } from '../../api'
 
 // The query catalog is now owned by App and passed in via props, so SqlTab no
@@ -44,6 +45,11 @@ vi.mock('../MonacoEditor', () => ({
   }),
 }))
 
+vi.mock('../../monacoThemes', () => ({
+  ensureMonacoTheme: (theme: string) => `wa-${theme}`,
+  editorFontOptions: () => ({ fontSize: 14, fontFamily: 'monospace' }),
+}))
+
 describe('SqlTab sidebar', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -64,5 +70,11 @@ describe('SqlTab sidebar', () => {
     render(<SqlTab queries={queries} theme="dark" />)
     await userEvent.click(screen.getByText('Top CPU Consumers'))
     expect(mockEditor.setValue).not.toHaveBeenCalled()
+  })
+
+  it('passes the registered Monaco theme for the active UI theme', () => {
+    render(<SqlTab queries={queries} theme="light-hc" />)
+    const props = vi.mocked(MonacoEditor).mock.calls.at(-1)?.[0]
+    expect(props).toEqual(expect.objectContaining({ theme: 'wa-light-hc' }))
   })
 })

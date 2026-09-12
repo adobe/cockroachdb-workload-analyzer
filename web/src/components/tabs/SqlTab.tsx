@@ -13,17 +13,20 @@ import { MonacoEditor } from '../MonacoEditor'
 import { ResultsTable } from '../ResultsTable'
 import { QueryList } from '../QueryList'
 import { useRun } from '../../hooks/useRun'
+import { editorFontOptions, ensureMonacoTheme } from '../../monacoThemes'
 import type { QueryDef } from '../../api'
 import type { ThemeName } from '../../theme'
 
 const DEFAULT_SQL = '-- Write your SQL here\n-- Ctrl+Enter or Cmd+Enter to run\nSELECT * FROM stmt_stats LIMIT 10'
 
-const EDITOR_OPTIONS = {
-  minimap: { enabled: false },
-  fontSize: 13,
-  lineNumbers: 'on' as const,
-  scrollBeyondLastLine: false,
-  wordWrap: 'on' as const,
+function editorOptions() {
+  return {
+    minimap: { enabled: false },
+    ...editorFontOptions(),
+    lineNumbers: 'on' as const,
+    scrollBeyondLastLine: false,
+    wordWrap: 'on' as const,
+  }
 }
 
 interface Props {
@@ -32,8 +35,9 @@ interface Props {
   onFingerprintClick?: (id: string) => void
 }
 
-export function SqlTab({ queries, onFingerprintClick }: Props) {
+export function SqlTab({ queries, theme, onFingerprintClick }: Props) {
   const { result, loading, run } = useRun()
+  const monacoTheme = ensureMonacoTheme(theme)
   const editorRef = useRef<{
     getValue: () => string
     setValue: (v: string) => void
@@ -79,9 +83,9 @@ export function SqlTab({ queries, onFingerprintClick }: Props) {
           <MonacoEditor
             defaultLanguage="sql"
             defaultValue={DEFAULT_SQL}
-            theme="vs-dark"
+            theme={monacoTheme}
             onMount={handleMount}
-            options={EDITOR_OPTIONS}
+            options={editorOptions()}
           />
           <div className="sql-toolbar">
             <button className="run-btn" onClick={handleRunClick} disabled={loading}>

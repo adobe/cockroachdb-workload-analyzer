@@ -42,9 +42,9 @@ interface Props {
 export function MonacoEditor({ defaultLanguage, defaultValue, theme, options, onMount }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
 
-  // All props are initial-only (mirroring @monaco-editor/react's default*
-  // semantics): the editor is created once on mount and owns its state from
-  // then on, so later prop changes are intentionally ignored.
+  // All props except `theme` are initial-only (mirroring @monaco-editor/react's
+  // default* semantics): the editor is created once on mount and owns its
+  // state from then on, so later prop changes are intentionally ignored.
   useEffect(() => {
     const editor = monaco.editor.create(containerRef.current!, {
       value: defaultValue,
@@ -57,6 +57,12 @@ export function MonacoEditor({ defaultLanguage, defaultValue, theme, options, on
     return () => editor.dispose()
     // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only by design, see above
   }, [])
+
+  // Theme is the one prop that is not initial-only: Monaco themes are global,
+  // so switching the UI theme must retint an already-mounted editor.
+  useEffect(() => {
+    if (theme) monaco.editor.setTheme(theme)
+  }, [theme])
 
   return <div ref={containerRef} className="monaco-editor-container" style={{ width: '100%', height: '100%' }} />
 }
