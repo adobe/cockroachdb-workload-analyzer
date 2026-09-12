@@ -19,6 +19,16 @@ function mediaMatches(query: string): boolean {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(query).matches
 }
 
+// Accessing window.localStorage itself can throw (blocked site data,
+// some private modes); readPreference/writePreference only guard the calls.
+function storage(): Storage | undefined {
+  try {
+    return globalThis.localStorage
+  } catch {
+    return undefined
+  }
+}
+
 // useTheme resolves the active theme (stored preference first, then the OS),
 // applies it to <html>, and keeps following OS changes only while the
 // preference is "system".
@@ -27,7 +37,7 @@ export function useTheme(): {
   preference: ThemePreference
   setPreference: (p: ThemePreference) => void
 } {
-  const [preference, setPreferenceState] = useState<ThemePreference>(() => readPreference(globalThis.localStorage))
+  const [preference, setPreferenceState] = useState<ThemePreference>(() => readPreference(storage()))
   const [system, setSystem] = useState<ThemeName>(() => systemTheme(mediaMatches))
 
   useEffect(() => {
@@ -43,18 +53,21 @@ export function useTheme(): {
 
   const theme: ThemeName = preference === 'system' ? system : preference
 
-  // A layout effect, not a passive one: React fires passive effects
-  // children-first, so a descendant's passive effect (e.g. Monaco's
-  // setTheme, or SqlTab registering a Monaco theme from live tokens) could
-  // otherwise run before data-theme is flipped and read stale colors.
-  // Layout effects fire parent-first during commit, before any passive
-  // effect anywhere in the tree runs.
+  // A layout effect, not a passive one. Layout effects fire children-first
+  // within a commit, same order as passive effects — but React runs every
+  // layout effect in a commit before any passive effect in that commit. So
+  // this layout effect (however deep useTheme sits) always applies the new
+  // data-theme before any descendant's passive effect runs, in particular
+  // SqlTab's registration of a Monaco theme from live tokens. If that
+  // registration were moved to a layout effect instead, it would run
+  // *before* this one (children-first among layout effects) and reintroduce
+  // the stale-token bug this ordering fixes.
   useLayoutEffect(() => {
     applyTheme(document.documentElement, theme)
   }, [theme])
 
   const setPreference = useCallback((p: ThemePreference) => {
-    writePreference(globalThis.localStorage, p)
+    writePreference(storage(), p)
     setPreferenceState(p)
   }, [])
 

@@ -59,6 +59,7 @@ governing permissions and limitations under the License.
   --success: #57d16e;
   --success-bg: #16321c;
   --focus-ring: #5fe3cf;
+  --scrim: #000000;
 }
 
 :root[data-theme="light"] {
@@ -82,6 +83,7 @@ governing permissions and limitations under the License.
   --success: #15702f;
   --success-bg: #dff3e4;
   --focus-ring: #0a6b60;
+  --scrim: #1b2129;
 }
 
 :root[data-theme="dark-hc"] {
@@ -105,6 +107,7 @@ governing permissions and limitations under the License.
   --success: #7ee597;
   --success-bg: #0c3a18;
   --focus-ring: #ffffff;
+  --scrim: #000000;
 }
 
 :root[data-theme="light-hc"] {
@@ -128,4 +131,5 @@ governing permissions and limitations under the License.
   --success: #0a4d1f;
   --success-bg: #cfeed8;
   --focus-ring: #000000;
+  --scrim: #000000;
 }

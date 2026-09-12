@@ -50,7 +50,7 @@ governing permissions and limitations under the License.
 .missing-banner, .error-banner {
   display: flex; align-items: flex-start; gap: var(--space-2);
   padding: var(--space-2) var(--space-4);
-  color: var(--text-primary); font-size: var(--text-sm); line-height: 1.5;
+  color: var(--text-primary); font-size: var(--text-md); line-height: 1.5;
 }
 .missing-banner { background: var(--warning-bg); border-bottom: 1px solid var(--warning); }
 .error-banner { background: var(--danger-bg); border-bottom: 1px solid var(--danger); }
@@ -156,7 +156,7 @@ governing permissions and limitations under the License.
 .run-btn {
   background: var(--accent-bg); border: 1px solid var(--accent); color: var(--accent);
   padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm);
-  cursor: pointer; font-size: var(--text-sm); font-weight: 600;
+  cursor: pointer; font-size: var(--text-md); font-weight: 600;
 }
 .run-btn:hover:not(:disabled) { background: var(--accent); color: var(--accent-fg); }
 .run-btn:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -173,7 +173,7 @@ governing permissions and limitations under the License.
   background: none; border: none; padding: 0; font-size: inherit;
 }
 .fingerprint-link:hover { color: var(--text-primary); }
-.drawer-backdrop { position: fixed; inset: 0; background: var(--bg-base); opacity: 0.6; z-index: 10; }
+.drawer-backdrop { position: fixed; inset: 0; background: var(--scrim); opacity: 0.5; z-index: 10; }
 .drawer {
   position: fixed; top: 0; right: 0; height: 100vh; width: 400px;
   background: var(--bg-surface); border-left: 1px solid var(--border-strong);

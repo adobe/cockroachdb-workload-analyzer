@@ -13,7 +13,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createElement, useEffect } from 'react'
 import { act, render, renderHook } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useTheme } from './useTheme'
 import { CONTRAST_QUERY, LIGHT_QUERY, STORAGE_KEY, readPreference, resolveTheme } from '../theme'
 import type { ThemePreference } from '../theme'
@@ -88,6 +88,22 @@ describe('useTheme', () => {
     expect(result.current.theme).toBe('dark')
   })
 
+  it('falls back to system when localStorage access throws', () => {
+    // Chrome throws SecurityError on window.localStorage itself (not just
+    // getItem/setItem) when site data is blocked. Simulate that by making
+    // the accessor throw.
+    const spy = vi.spyOn(globalThis, 'localStorage', 'get').mockImplementation(() => {
+      throw new Error('blocked')
+    })
+    try {
+      const { result } = renderHook(() => useTheme())
+      expect(result.current.preference).toBe('system')
+      expect(result.current.theme).toBe('dark')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
   it('applies the theme before descendants\' passive effects run', () => {
     // This file is .ts, not .tsx, so JSX doesn't parse here; build the
     // element tree with createElement instead.
@@ -153,5 +169,15 @@ describe('index.html bootstrap script', () => {
     const expected = resolveTheme(readPreference(localStorage), q => window.matchMedia(q).matches)
     expect(document.documentElement.dataset.theme).toBe(expected)
     expect(document.documentElement.style.colorScheme).toBe(expected.startsWith('dark') ? 'dark' : 'light')
+  })
+
+  it.each(cases)('useTheme agrees with resolveTheme for %o', ({ stored, os }) => {
+    localStorage.clear()
+    if (stored !== null) localStorage.setItem(STORAGE_KEY, stored)
+    media = installMatchMedia(os)
+    delete document.documentElement.dataset.theme
+    const { result } = renderHook(() => useTheme())
+    const expected = resolveTheme(readPreference(localStorage), q => window.matchMedia(q).matches)
+    expect(result.current.theme).toBe(expected)
   })
 })

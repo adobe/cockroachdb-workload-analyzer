@@ -42,6 +42,15 @@ export function SqlTab({ queries, theme, onFingerprintClick }: Props) {
   // effect). Re-registered in a passive effect on theme change, after
   // useTheme's layout effect has flipped data-theme for the new theme, so
   // this never reads stale colors.
+  //
+  // Kept in state rather than derived in render: MonacoEditor is a child of
+  // SqlTab, so its own `[theme]` effect (which calls monaco.editor.setTheme)
+  // runs before this effect does. If the theme name were computed directly
+  // in render instead, MonacoEditor would receive it immediately — before
+  // ensureMonacoTheme had registered it — and call setTheme with an unknown
+  // name; Monaco silently falls back to its default and nothing ever calls
+  // setTheme again. Holding the name in state guarantees MonacoEditor only
+  // sees it on the render after registration has happened.
   const [monacoTheme, setMonacoTheme] = useState(() => ensureMonacoTheme(theme))
   useEffect(() => {
     // ensureMonacoTheme is a call into an external system (it registers a

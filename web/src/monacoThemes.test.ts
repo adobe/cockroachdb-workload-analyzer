@@ -66,6 +66,19 @@ describe('ensureMonacoTheme', () => {
     expect(defineTheme).toHaveBeenCalledTimes(2)
     expect((defineTheme.mock.calls[1][1] as { colors: Record<string, string> }).colors['editor.background']).toBe('#000000')
   })
+
+  it('falls back to the base theme name when defineTheme throws', () => {
+    defineTheme.mockImplementationOnce(() => {
+      throw new Error('Illegal value')
+    })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      expect(ensureMonacoTheme('light-hc')).toBe('hc-light')
+      expect(errorSpy).toHaveBeenCalledTimes(1)
+    } finally {
+      errorSpy.mockRestore()
+    }
+  })
 })
 
 describe('normalizeHex', () => {

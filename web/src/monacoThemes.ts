@@ -47,20 +47,28 @@ export function monacoThemeName(theme: ThemeName): string {
 // step with any token change.
 export function ensureMonacoTheme(theme: ThemeName): string {
   const name = monacoThemeName(theme)
-  monaco.editor.defineTheme(name, {
-    base: BASES[theme],
-    inherit: true,
-    rules: [],
-    colors: {
-      'editor.background': color('--bg-base'),
-      'editor.foreground': color('--text-primary'),
-      'editorLineNumber.foreground': color('--text-muted'),
-      'editor.lineHighlightBackground': color('--bg-surface'),
-      'editor.selectionBackground': color('--bg-selected'),
-      'editorCursor.foreground': color('--accent'),
-      focusBorder: color('--focus-ring'),
-    },
-  })
+  try {
+    monaco.editor.defineTheme(name, {
+      base: BASES[theme],
+      inherit: true,
+      rules: [],
+      colors: {
+        'editor.background': color('--bg-base'),
+        'editor.foreground': color('--text-primary'),
+        'editorLineNumber.foreground': color('--text-muted'),
+        'editor.lineHighlightBackground': color('--bg-surface'),
+        'editor.selectionBackground': color('--bg-selected'),
+        'editorCursor.foreground': color('--accent'),
+        focusBorder: color('--focus-ring'),
+      },
+    })
+  } catch (err) {
+    // A bad computed-style value (e.g. an unparsed custom property) would
+    // otherwise throw out of this call and blank the whole app. Degrade to
+    // Monaco's own base theme instead: unthemed but working.
+    console.error(`Failed to define Monaco theme "${name}":`, err)
+    return BASES[theme]
+  }
   return name
 }
 
