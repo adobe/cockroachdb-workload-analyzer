@@ -8,30 +8,60 @@
 // OF ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { MonacoEditor } from '../MonacoEditor'
 import { ResultsTable } from '../ResultsTable'
 import { QueryList } from '../QueryList'
 import { useRun } from '../../hooks/useRun'
+import { editorFontOptions, ensureMonacoTheme } from '../../monacoThemes'
 import type { QueryDef } from '../../api'
+import type { ThemeName } from '../../theme'
 
 const DEFAULT_SQL = '-- Write your SQL here\n-- Ctrl+Enter or Cmd+Enter to run\nSELECT * FROM stmt_stats LIMIT 10'
 
-const EDITOR_OPTIONS = {
-  minimap: { enabled: false },
-  fontSize: 13,
-  lineNumbers: 'on' as const,
-  scrollBeyondLastLine: false,
-  wordWrap: 'on' as const,
+function editorOptions() {
+  return {
+    minimap: { enabled: false },
+    ...editorFontOptions(),
+    lineNumbers: 'on' as const,
+    scrollBeyondLastLine: false,
+    wordWrap: 'on' as const,
+  }
 }
 
 interface Props {
   queries: QueryDef[]
+  theme: ThemeName
   onFingerprintClick?: (id: string) => void
 }
 
-export function SqlTab({ queries, onFingerprintClick }: Props) {
+export function SqlTab({ queries, theme, onFingerprintClick }: Props) {
   const { result, loading, run } = useRun()
+  // Lazily initialized so the first mount reads fresh tokens (data-theme is
+  // already set by then, via the bootstrap script or useTheme's layout
+  // effect). Re-registered in a passive effect on theme change, after
+  // useTheme's layout effect has flipped data-theme for the new theme, so
+  // this never reads stale colors.
+  //
+  // Kept in state rather than derived in render: MonacoEditor is a child of
+  // SqlTab, so its own `[theme]` effect (which calls monaco.editor.setTheme)
+  // runs before this effect does. If the theme name were computed directly
+  // in render instead, MonacoEditor would receive it immediately — before
+  // ensureMonacoTheme had registered it — and call setTheme with an unknown
+  // name; Monaco silently falls back to its default and nothing ever calls
+  // setTheme again. Holding the name in state guarantees MonacoEditor only
+  // sees it on the render after registration has happened.
+  const [monacoTheme, setMonacoTheme] = useState(() => ensureMonacoTheme(theme))
+  useEffect(() => {
+    // ensureMonacoTheme is a call into an external system (it registers a
+    // theme in Monaco's global registry from current computed-style tokens);
+    // mirroring its return value into state is the effect synchronizing with
+    // that system, not a derivable-in-render value. Computing it in render
+    // instead would reintroduce the bug this effect fixes: render runs
+    // before useTheme's layout effect flips data-theme for the new theme.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMonacoTheme(ensureMonacoTheme(theme))
+  }, [theme])
   const editorRef = useRef<{
     getValue: () => string
     setValue: (v: string) => void
@@ -77,9 +107,9 @@ export function SqlTab({ queries, onFingerprintClick }: Props) {
           <MonacoEditor
             defaultLanguage="sql"
             defaultValue={DEFAULT_SQL}
-            theme="vs-dark"
+            theme={monacoTheme}
             onMount={handleMount}
-            options={EDITOR_OPTIONS}
+            options={editorOptions()}
           />
           <div className="sql-toolbar">
             <button className="run-btn" onClick={handleRunClick} disabled={loading}>

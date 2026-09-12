@@ -11,7 +11,9 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 import App from './App'
-import { ApiError, fetchMeta, fetchQueries, fetchDatabases } from './api'
+import userEvent from '@testing-library/user-event'
+import { ApiError, fetchMeta, fetchQueries, fetchDatabases, fetchSchema } from './api'
+import { installMatchMedia } from './test/matchMedia'
 
 vi.mock('./api', async (importOriginal) => {
   const actual = await importOriginal<typeof import('./api')>()
@@ -20,6 +22,7 @@ vi.mock('./api', async (importOriginal) => {
     fetchMeta: vi.fn(),
     fetchQueries: vi.fn(),
     fetchDatabases: vi.fn(),
+    fetchSchema: vi.fn(),
   }
 })
 
@@ -34,6 +37,7 @@ vi.mock('./components/tabs/SchemaTab', () => ({ SchemaTab: () => <div>schema</di
 
 describe('App fetch error surfacing', () => {
   beforeEach(() => {
+    installMatchMedia()
     vi.clearAllMocks()
     vi.mocked(fetchMeta).mockResolvedValue({
       version: '1', timestamp: '', cluster_version: '', cluster_id: '',
@@ -41,6 +45,7 @@ describe('App fetch error surfacing', () => {
     })
     vi.mocked(fetchQueries).mockResolvedValue([])
     vi.mocked(fetchDatabases).mockResolvedValue([])
+    vi.mocked(fetchSchema).mockResolvedValue({ databases: { staging: 'CREATE TABLE staging ...', prod: 'CREATE TABLE prod ...' } })
   })
 
   it('shows an error banner when the query catalog fails to load', async () => {
@@ -77,5 +82,48 @@ describe('App fetch error surfacing', () => {
     render(<App />)
     await waitFor(() => expect(screen.getByText('analysis')).toBeInTheDocument())
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+})
+
+describe('App database picker per tab', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    installMatchMedia()
+    vi.mocked(fetchMeta).mockResolvedValue({
+      version: '1', timestamp: '', cluster_version: '', cluster_id: '',
+      organization: '', virtual_cluster: false,
+    })
+    vi.mocked(fetchQueries).mockResolvedValue([])
+    vi.mocked(fetchDatabases).mockResolvedValue(['movr'])
+    vi.mocked(fetchSchema).mockResolvedValue({ databases: { staging: 'CREATE TABLE staging ...', prod: 'CREATE TABLE prod ...' } })
+  })
+
+  it('shows the schema database picker in the tab bar without an "All databases" option', async () => {
+    render(<App />)
+    await userEvent.click(screen.getByRole('button', { name: 'Schema' }))
+    const picker = await screen.findByRole('combobox', { name: 'Select database schema' })
+    expect(screen.getByRole('navigation')).toContainElement(picker)
+    expect(screen.getAllByRole('option').filter(o => o.closest('select') === picker).map(o => o.textContent)).toEqual(['prod', 'staging'])
+    expect(screen.queryByRole('option', { name: 'All databases' })).not.toBeInTheDocument()
+  })
+
+  it('does not request the schema until the Schema tab is opened', async () => {
+    render(<App />)
+    await screen.findByRole('combobox', { name: 'Filter by database' })
+    expect(fetchSchema).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Schema' }))
+    await screen.findByRole('combobox', { name: 'Select database schema' })
+    expect(fetchSchema).toHaveBeenCalledTimes(1)
+  })
+
+  it('switches back to the filter picker with "All databases" on the Analysis tab', async () => {
+    render(<App />)
+    await userEvent.click(screen.getByRole('button', { name: 'Schema' }))
+    await screen.findByRole('combobox', { name: 'Select database schema' })
+    await userEvent.click(screen.getByRole('button', { name: 'Analysis' }))
+    const picker = await screen.findByRole('combobox', { name: 'Filter by database' })
+    expect(picker).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'All databases' })).toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: 'Select database schema' })).not.toBeInTheDocument()
   })
 })

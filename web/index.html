@@ -5,6 +5,23 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CockroachDB Workload Analyzer</title>
+    <script>
+      // Keep in sync with src/theme.ts (resolveTheme); useTheme.test.ts
+      // evaluates this script against it. Runs before first paint so the page
+      // never flashes the wrong theme. Module scripts are deferred, so this
+      // must stay a classic inline script.
+      (function () {
+        var theme = null;
+        try { theme = window.localStorage.getItem('wa.theme'); } catch (e) { /* no storage */ }
+        var valid = ['dark', 'light', 'dark-hc', 'light-hc'];
+        if (valid.indexOf(theme) < 0) {
+          var m = function (q) { return typeof window.matchMedia === 'function' && window.matchMedia(q).matches; };
+          theme = (m('(prefers-color-scheme: light)') ? 'light' : 'dark') + (m('(prefers-contrast: more)') ? '-hc' : '');
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.style.colorScheme = theme.indexOf('dark') === 0 ? 'dark' : 'light';
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

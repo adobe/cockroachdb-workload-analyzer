@@ -42,3 +42,18 @@ describe('DatabasePicker', () => {
     expect((screen.getByRole('combobox') as HTMLSelectElement).value).toBe('db_b')
   })
 })
+
+describe('DatabasePicker without the "All" option', () => {
+  it('omits "All databases" when allowAll is false', () => {
+    render(<DatabasePicker databases={['prod', 'staging']} selected="prod" onSelect={() => {}} allowAll={false} />)
+    expect(screen.queryByRole('option', { name: 'All databases' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('option')).toHaveLength(2)
+  })
+
+  it('uses a custom accessible label when given', () => {
+    render(
+      <DatabasePicker databases={['prod']} selected="prod" onSelect={() => {}} allowAll={false} ariaLabel="Select database schema" />,
+    )
+    expect(screen.getByRole('combobox', { name: 'Select database schema' })).toBeInTheDocument()
+  })
+})

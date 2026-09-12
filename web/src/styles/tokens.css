@@ -1,0 +1,135 @@
+/*
+Copyright 2026 Adobe. All rights reserved.
+This file is licensed to you under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License. You may obtain a copy
+of the License at http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software distributed under
+the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR REPRESENTATIONS
+OF ANY KIND, either express or implied. See the License for the specific language
+governing permissions and limitations under the License.
+*/
+
+/* Design tokens. This is the only stylesheet allowed to contain color
+   literals; everything else consumes the custom properties defined here.
+   Contrast for every theme block is enforced by tokens.test.ts. */
+
+:root {
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+  --text-lg: 15px;
+  --text-md: 14px;
+  --text-sm: 13px;
+  --text-xs: 12px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+
+  --sidebar-width: 240px;
+}
+
+/* The default (no attribute yet) is dark so a page that somehow loads
+   without the bootstrap script still matches the tool's original look. */
+:root,
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg-base: #0f1317;
+  --bg-surface: #171c22;
+  --bg-raised: #20272f;
+  --bg-selected: #16302f;
+  --border-subtle: #2a323b;
+  --border-strong: #6e7a88;
+  --text-primary: #e9eef3;
+  --text-secondary: #aab5c1;
+  --text-muted: #8d9aa8;
+  --accent: #3fd1bc;
+  --accent-fg: #062421;
+  --accent-bg: #12312e;
+  --danger: #ff7b72;
+  --danger-bg: #3a1f1e;
+  --warning: #f0b429;
+  --warning-bg: #3a2e10;
+  --success: #57d16e;
+  --success-bg: #16321c;
+  --focus-ring: #5fe3cf;
+  --scrim: #000000;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg-base: #f6f8fa;
+  --bg-surface: #ffffff;
+  --bg-raised: #eef1f4;
+  --bg-selected: #e0f5f2;
+  --border-subtle: #d5dbe1;
+  --border-strong: #788493;
+  --text-primary: #1b2129;
+  --text-secondary: #4a5564;
+  --text-muted: #5f6b78;
+  --accent: #0a6b60;
+  --accent-fg: #ffffff;
+  --accent-bg: #d8f3ef;
+  --danger: #b3261e;
+  --danger-bg: #fbe4e2;
+  --warning: #8a5a00;
+  --warning-bg: #fbf0d5;
+  --success: #15702f;
+  --success-bg: #dff3e4;
+  --focus-ring: #0a6b60;
+  --scrim: #1b2129;
+}
+
+:root[data-theme="dark-hc"] {
+  color-scheme: dark;
+  --bg-base: #000000;
+  --bg-surface: #0b0f13;
+  --bg-raised: #1a2027;
+  --bg-selected: #0f2f2b;
+  --border-subtle: #5a646f;
+  --border-strong: #9aa5b1;
+  --text-primary: #ffffff;
+  --text-secondary: #e0e6ec;
+  --text-muted: #c0c9d2;
+  --accent: #5ff0da;
+  --accent-fg: #000000;
+  --accent-bg: #0f3a35;
+  --danger: #ff9a93;
+  --danger-bg: #3d1512;
+  --warning: #ffd166;
+  --warning-bg: #3d2e00;
+  --success: #7ee597;
+  --success-bg: #0c3a18;
+  --focus-ring: #ffffff;
+  --scrim: #000000;
+}
+
+:root[data-theme="light-hc"] {
+  color-scheme: light;
+  --bg-base: #ffffff;
+  --bg-surface: #ffffff;
+  --bg-raised: #e8ecf0;
+  --bg-selected: #cdeee8;
+  --border-subtle: #6b7682;
+  --border-strong: #2b333b;
+  --text-primary: #000000;
+  --text-secondary: #1f262e;
+  --text-muted: #333c46;
+  --accent: #04524a;
+  --accent-fg: #ffffff;
+  --accent-bg: #cdeee8;
+  --danger: #8f1d17;
+  --danger-bg: #fbe3e1;
+  --warning: #5a3a00;
+  --warning-bg: #f6e5b8;
+  --success: #0a4d1f;
+  --success-bg: #cfeed8;
+  --focus-ring: #000000;
+  --scrim: #000000;
+}
