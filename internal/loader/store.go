@@ -125,10 +125,23 @@ func (s *Store) Seal() error {
 	if err := s.db.Close(); err != nil {
 		return fmt.Errorf("closing read-write database: %w", err)
 	}
-	ro, err := openDuckDB(s.path + "?access_mode=read_only")
+	ro, err := openReadOnly(s.path)
 	if err != nil {
 		s.db = closedDB()
-		return fmt.Errorf("reopening database read-only: %w", err)
+		return err
+	}
+	s.db = ro
+	s.sealed = true
+	return nil
+}
+
+// openReadOnly opens the database file at path with access_mode=read_only,
+// verifies DuckDB really applied that mode, and hardens the handle. On any
+// failure the handle is closed before the error is returned.
+func openReadOnly(path string) (*sql.DB, error) {
+	ro, err := openDuckDB(path + "?access_mode=read_only")
+	if err != nil {
+		return nil, fmt.Errorf("reopening database read-only: %w", err)
 	}
 	// Don't trust the DSN: go-duckdb parses it as a URL, so a '#' in the
 	// path silently drops the query string and the file opens read-write.
@@ -136,22 +149,17 @@ func (s *Store) Seal() error {
 	var mode string
 	if err := ro.QueryRow("SELECT current_setting('access_mode')").Scan(&mode); err != nil {
 		ro.Close()
-		s.db = closedDB()
-		return fmt.Errorf("checking access mode: %w", err)
+		return nil, fmt.Errorf("checking access mode: %w", err)
 	}
 	if mode != "read_only" {
 		ro.Close()
-		s.db = closedDB()
-		return fmt.Errorf("database reopened with access_mode=%q, want read_only", mode)
+		return nil, fmt.Errorf("database reopened with access_mode=%q, want read_only", mode)
 	}
 	if err := HardenDuckDB(ro); err != nil {
 		ro.Close()
-		s.db = closedDB()
-		return fmt.Errorf("hardening read-only database: %w", err)
+		return nil, fmt.Errorf("hardening read-only database: %w", err)
 	}
-	s.db = ro
-	s.sealed = true
-	return nil
+	return ro, nil
 }
 
 // closedDB returns a handle whose every use fails with sql's "database is
