@@ -36,10 +36,11 @@ function stepFor(key: string, index: number, last: number): number | null {
 }
 
 export function QueryList({ queries, activeId, onSelect, activation = 'manual' }: Props) {
-  const categories = [...new Set(queries.map(q => q.category))]
-  // The list renders grouped by category, so keyboard order is the grouped
-  // order, not the catalog order.
-  const ordered = categories.flatMap(cat => queries.filter(q => q.category === cat))
+  // Grouped by category in first-seen order. The list renders in this grouped
+  // order, so keyboard order is the grouped order, not the catalog order.
+  const groups = new Map<string, QueryDef[]>()
+  for (const q of queries) groups.set(q.category, [...(groups.get(q.category) ?? []), q])
+  const ordered = [...groups.values()].flat()
   const itemRefs = useRef(new Map<string, HTMLButtonElement>())
 
   // Roving tabindex: exactly one item is tabbable. It is the item the keyboard
@@ -99,10 +100,10 @@ export function QueryList({ queries, activeId, onSelect, activation = 'manual' }
 
   return (
     <nav className="query-list" aria-label="Queries" onKeyDown={handleKeyDown}>
-      {categories.map(cat => (
+      {[...groups].map(([cat, items]) => (
         <div key={cat} className="query-category">
           <div className="query-category-label">{cat}</div>
-          {queries.filter(q => q.category === cat).map(q => (
+          {items.map(q => (
             <button
               key={q.id}
               ref={el => {
