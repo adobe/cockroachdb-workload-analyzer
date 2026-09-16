@@ -13,7 +13,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // vi.mock is hoisted above every import, so the spy it closes over must be
 // created with vi.hoisted or it would be in the temporal dead zone.
 const { defineTheme } = vi.hoisted(() => ({ defineTheme: vi.fn() }))
-vi.mock('monaco-editor/esm/vs/editor/editor.api.js', () => ({
+vi.mock('monaco-editor/editor/editor.api.js', () => ({
   editor: { defineTheme },
 }))
 

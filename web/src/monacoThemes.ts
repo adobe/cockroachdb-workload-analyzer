@@ -11,7 +11,7 @@
 // Registers one Monaco theme per UI theme, built from the live token values
 // so tokens.css stays the single source of truth. Syntax colors are inherited
 // from Monaco's own base theme for that mode; only surfaces are overridden.
-import * as monaco from 'monaco-editor/esm/vs/editor/editor.api.js'
+import * as monaco from 'monaco-editor/editor/editor.api.js'
 import type { ThemeName } from './theme'
 
 const BASES: Record<ThemeName, monaco.editor.BuiltinTheme> = {

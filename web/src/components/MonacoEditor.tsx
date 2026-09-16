@@ -14,9 +14,9 @@ import { useEffect, useRef } from 'react'
 // CSS, HTML, and JSON language services, their workers, and ~70 unused
 // language chunks — roughly 9 MB of dead weight in the embedded binary
 // (enforced by TestEmbeddedAssetsWithinSizeBudget in static_test.go).
-import * as monaco from 'monaco-editor/esm/vs/editor/editor.api.js'
-import 'monaco-editor/esm/vs/basic-languages/sql/sql.contribution.js'
-import editorWorker from 'monaco-editor/esm/vs/editor/editor.worker?worker'
+import * as monaco from 'monaco-editor/editor/editor.api.js'
+import 'monaco-editor/languages/definitions/sql/register.js'
+import editorWorker from 'monaco-editor/editor/editor.worker.js?worker'
 
 // Thin wrapper around the bundled monaco-editor package instead of
 // @monaco-editor/react, whose loader fetches monaco from cdn.jsdelivr.net at
