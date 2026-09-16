@@ -8,18 +8,26 @@
 // OF ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import type * as monaco from 'monaco-editor/editor/editor.api.js'
 import { MonacoEditor } from '../MonacoEditor'
 import { ResultsTable } from '../ResultsTable'
 import { QueryList } from '../QueryList'
 import { useRun } from '../../hooks/useRun'
 import { editorFontOptions, ensureMonacoTheme } from '../../monacoThemes'
+import { runModifierLabel } from '../../shortcuts'
 import type { QueryDef } from '../../api'
 import type { ThemeName } from '../../theme'
 
+// The slice of the Monaco editor this tab drives. A type-only import, so the
+// jsdom tests that mock MonacoEditor never load monaco itself.
+type EditorHandle = Pick<monaco.editor.IStandaloneCodeEditor, 'getValue' | 'setValue' | 'addCommand'>
+
 const DEFAULT_SQL = '-- Write your SQL here\n-- Ctrl+Enter or Cmd+Enter to run\nSELECT * FROM stmt_stats LIMIT 10'
 
-function editorOptions() {
+// Read once per SqlTab mount: MonacoEditor only consults options when it
+// creates the editor, so re-reading computed styles on every render is wasted.
+function editorOptions(): monaco.editor.IStandaloneEditorConstructionOptions {
   return {
     minimap: { enabled: false },
     ...editorFontOptions(),
@@ -62,17 +70,11 @@ export function SqlTab({ queries, theme, onFingerprintClick }: Props) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setMonacoTheme(ensureMonacoTheme(theme))
   }, [theme])
-  const editorRef = useRef<{
-    getValue: () => string
-    setValue: (v: string) => void
-    addCommand: (keybinding: number, handler: () => void) => void
-  } | null>(null)
+  const [options] = useState(editorOptions)
+  const editorRef = useRef<EditorHandle | null>(null)
 
-  const handleMount = useCallback((editor: {
-    getValue: () => string
-    setValue: (v: string) => void
-    addCommand: (keybinding: number, handler: () => void) => void
-  }) => {
+  // Called once, from MonacoEditor's mount-only effect; `run` is stable.
+  function handleMount(editor: EditorHandle) {
     editorRef.current = editor
 
     editor.addCommand(
@@ -83,7 +85,7 @@ export function SqlTab({ queries, theme, onFingerprintClick }: Props) {
         if (sql) run(sql)
       }
     )
-  }, [run])
+  }
 
   function handleRunClick() {
     const sql = editorRef.current?.getValue().trim()
@@ -105,15 +107,14 @@ export function SqlTab({ queries, theme, onFingerprintClick }: Props) {
       <div className="sql-editor-column">
         <div className="sql-editor-area">
           <MonacoEditor
-            defaultLanguage="sql"
             defaultValue={DEFAULT_SQL}
             theme={monacoTheme}
             onMount={handleMount}
-            options={editorOptions()}
+            options={options}
           />
           <div className="sql-toolbar">
             <button className="run-btn" onClick={handleRunClick} disabled={loading}>
-              {loading ? 'Running...' : '▶ Run (⌘↵)'}
+              {loading ? 'Running...' : `▶ Run (${runModifierLabel()}↵)`}
             </button>
           </div>
         </div>

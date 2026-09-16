@@ -31,15 +31,16 @@ self.MonacoEnvironment = {
   getWorker: () => new editorWorker(),
 }
 
+// The editor is SQL-only: the SQL language contribution is the only one
+// bundled (see the import above).
 interface Props {
-  defaultLanguage: string
   defaultValue: string
   theme?: string
   options?: monaco.editor.IStandaloneEditorConstructionOptions
   onMount?: (editor: monaco.editor.IStandaloneCodeEditor) => void
 }
 
-export function MonacoEditor({ defaultLanguage, defaultValue, theme, options, onMount }: Props) {
+export function MonacoEditor({ defaultValue, theme, options, onMount }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   // All props except `theme` are initial-only (mirroring @monaco-editor/react's
@@ -48,7 +49,7 @@ export function MonacoEditor({ defaultLanguage, defaultValue, theme, options, on
   useEffect(() => {
     const editor = monaco.editor.create(containerRef.current!, {
       value: defaultValue,
-      language: defaultLanguage,
+      language: 'sql',
       theme,
       automaticLayout: true,
       ...options,
