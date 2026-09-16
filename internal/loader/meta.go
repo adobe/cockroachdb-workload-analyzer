@@ -39,15 +39,12 @@ type TimeRange struct {
 // Schemas maps database name → schema text content.
 type Schemas map[string]string
 
-// rawMeta mirrors the actual JSON structure for unmarshalling.
+// rawMeta mirrors the actual JSON structure for unmarshalling: the scalar
+// fields are Meta's own (the embedded struct is flattened by encoding/json),
+// and the time range arrives nested under export_config.
 type rawMeta struct {
-	Version        string `json:"version"`
-	Timestamp      string `json:"timestamp"`
-	ClusterVersion string `json:"cluster_version"`
-	ClusterID      string `json:"cluster_id"`
-	Organization   string `json:"organization"`
-	VirtualCluster bool   `json:"virtual_cluster"`
-	ExportConfig   struct {
+	Meta
+	ExportConfig struct {
 		// workload-exporter writes these keys in PascalCase; Meta re-exposes
 		// them in the snake_case the rest of /api/meta uses.
 		TimeRange struct {
@@ -73,18 +70,12 @@ func ParseMeta(files ExtractedFiles) (*Meta, error) {
 		return nil, fmt.Errorf("parsing metadata.json: %w", err)
 	}
 
-	return &Meta{
-		Version:        raw.Version,
-		Timestamp:      raw.Timestamp,
-		ClusterVersion: raw.ClusterVersion,
-		ClusterID:      raw.ClusterID,
-		Organization:   raw.Organization,
-		VirtualCluster: raw.VirtualCluster,
-		TimeRange: TimeRange{
-			Start: raw.ExportConfig.TimeRange.Start,
-			End:   raw.ExportConfig.TimeRange.End,
-		},
-	}, nil
+	m := raw.Meta
+	m.TimeRange = TimeRange{
+		Start: raw.ExportConfig.TimeRange.Start,
+		End:   raw.ExportConfig.TimeRange.End,
+	}
+	return &m, nil
 }
 
 func ParseSchemas(files ExtractedFiles) (Schemas, error) {
