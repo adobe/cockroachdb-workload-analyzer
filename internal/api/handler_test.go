@@ -517,14 +517,9 @@ func TestHandleDatabases_MidStreamRowsErrorIsReported(t *testing.T) {
 	if rr.Code != http.StatusInternalServerError {
 		t.Errorf("status = %d, want 500 (body %s)", rr.Code, rr.Body.String())
 	}
-	// The UI does res.json() unconditionally and expects a string array, so
-	// the error body must still be an array — just never a partial one.
-	var dbs []string
-	if err := json.Unmarshal(rr.Body.Bytes(), &dbs); err != nil {
-		t.Fatalf("body not a JSON array: %v (%s)", err, rr.Body.String())
-	}
-	if len(dbs) != 0 {
-		t.Errorf("expected no databases on a failed read, got %v", dbs)
+	// A failed read must never surface the rows read so far as a result.
+	if strings.Contains(rr.Body.String(), "alpha") {
+		t.Errorf("partial list leaked into the error response: %s", rr.Body.String())
 	}
 }
 

@@ -79,12 +79,10 @@ func (h *Handler) handleQueries(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleDatabases(w http.ResponseWriter, r *http.Request) {
 	dbs, err := h.listDatabases(r.Context())
 	if err != nil {
-		// Never return a partial list as if it were complete. The UI parses
-		// the body as a string array unconditionally, so keep it an array.
+		// Never return a partial list as if it were complete; the UI treats
+		// any non-2xx as a failure without reading the body.
 		log.Printf("handleDatabases: %v", err)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusInternalServerError)
-		writeJSON(w, []string{})
+		http.Error(w, "listing databases failed", http.StatusInternalServerError)
 		return
 	}
 	writeJSON(w, dbs)
