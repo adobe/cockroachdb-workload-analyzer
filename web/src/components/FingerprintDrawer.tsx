@@ -64,7 +64,7 @@ export function FingerprintDrawer({ fingerprint, onClose }: Props) {
     <>
       <div className="drawer-backdrop" onClick={onClose} />
       <div
-        className="drawer open"
+        className="drawer"
         style={{ width }}
         role="dialog"
         aria-modal="true"

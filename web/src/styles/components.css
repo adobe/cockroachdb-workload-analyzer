@@ -189,17 +189,17 @@ governing permissions and limitations under the License.
 }
 .fingerprint-link:hover { color: var(--text-primary); }
 .drawer-backdrop { position: fixed; inset: 0; background: var(--scrim); opacity: 0.5; z-index: 10; }
+/* Width is set inline by useDrawerWidth. The drawer is only mounted while
+   open, so there is no closed state to animate from. */
 .drawer {
-  position: fixed; top: 0; right: 0; height: 100vh; width: 400px;
+  position: fixed; top: 0; right: 0; height: 100vh;
   background: var(--bg-surface); border-left: 1px solid var(--border-strong);
   border-radius: var(--radius-md) 0 0 var(--radius-md);
-  z-index: 11; transform: translateX(100%); display: flex; flex-direction: column;
+  z-index: 11; display: flex; flex-direction: column;
 }
 @media (prefers-reduced-motion: no-preference) {
-  .drawer { transition: transform 0.2s ease; }
   .progress-fill { transition: width 0.3s; }
 }
-.drawer.open { transform: translateX(0); }
 .drawer-resize { position: absolute; top: 0; left: 0; width: 6px; height: 100%; cursor: col-resize; z-index: 12; }
 .drawer-resize:hover { background: var(--border-strong); }
 .drawer-header {
