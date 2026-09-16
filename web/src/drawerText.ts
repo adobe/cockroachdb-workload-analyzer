@@ -12,19 +12,21 @@
 // (query text + per-statement stats), for the drawer's Copy button.
 import type { DetailKind, StmtDetail } from './hooks/useFingerprintDetail'
 
-function sec(v: number | null): string {
+// Stat formatting shared with the drawer's on-screen cards, so the Copy text
+// and the rendered values always agree.
+export function fmtSec(v: number | null): string {
   return v == null ? '—' : `${v}s`
 }
 
-function num(v: number | null): string {
+export function fmtNum(v: number | null): string {
   return v == null ? '—' : String(v)
 }
 
 function statLine(s: StmtDetail): string {
   return (
-    `executions: ${num(s.executions)} | ` +
-    `mean run latency: ${sec(s.meanRunLatSec)} | ` +
-    `contention: ${sec(s.contentionSec)} | ` +
+    `executions: ${fmtNum(s.executions)} | ` +
+    `mean run latency: ${fmtSec(s.meanRunLatSec)} | ` +
+    `contention: ${fmtSec(s.contentionSec)} | ` +
     `full scan: ${s.fullScan ? 'yes' : 'no'}`
   )
 }

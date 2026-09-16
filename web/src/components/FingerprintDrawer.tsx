@@ -11,19 +11,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useFingerprintDetail, type StmtDetail } from '../hooks/useFingerprintDetail'
 import { useDrawerWidth } from '../hooks/useDrawerWidth'
-import { drawerToText } from '../drawerText'
+import { drawerToText, fmtNum, fmtSec } from '../drawerText'
 
 interface Props {
   fingerprint: string | null
   onClose: () => void
-}
-
-function fmtSec(v: number | null): string {
-  return v == null ? '—' : `${v}s`
-}
-
-function fmtNum(v: number | null): string {
-  return v == null ? '—' : String(v)
 }
 
 function StatementCard({ detail }: { detail: StmtDetail }) {
