@@ -167,9 +167,7 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 		// Catalog queries above are fixed SQL from the embedded catalog and
 		// don't need the gate.
 		if h.status.State() != "ready" {
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusServiceUnavailable)
-			writeJSON(w, runResponse{Error: "The export is still loading — the SQL editor is available once loading completes."})
+			writeJSONStatus(w, http.StatusServiceUnavailable, runResponse{Error: "The export is still loading — the SQL editor is available once loading completes."})
 			return
 		}
 		finalSQL = req.SQL
@@ -181,45 +179,9 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 	// DuckDB connection instead of blocking every later request behind a
 	// runaway query. (Server shutdown does not cancel request contexts; see
 	// main.go.)
-	rows, err := h.db.QueryContext(r.Context(), finalSQL, args...)
+	cols, result, err := h.collectRows(r.Context(), finalSQL, args)
 	if err != nil {
-		h.rollbackAfterError()
-		writeJSON(w, runResponse{Error: friendlyRunError(err, h.status)})
-		return
-	}
-	defer rows.Close()
-
-	cols, err := rows.Columns()
-	if err != nil {
-		rows.Close()
-		h.rollbackAfterError()
-		writeJSON(w, runResponse{Error: err.Error()})
-		return
-	}
-
-	// A nil slice marshals to JSON null; use an empty slice so the client always
-	// receives an array (the UI does result.rows.length with no null guard).
-	result := [][]any{}
-	for rows.Next() {
-		vals := make([]any, len(cols))
-		ptrs := make([]any, len(cols))
-		for i := range vals {
-			ptrs[i] = &vals[i]
-		}
-		if err := rows.Scan(ptrs...); err != nil {
-			rows.Close()
-			h.rollbackAfterError()
-			writeJSON(w, runResponse{Error: err.Error()})
-			return
-		}
-		row := make([]any, len(vals))
-		copy(row, vals)
-		result = append(result, row)
-	}
-	// Next returns false on both end-of-rows and failure; without this check
-	// a mid-stream error would be reported as a shorter, successful result.
-	if err := rows.Err(); err != nil {
-		rows.Close()
+		// The rows are closed by now, so the ROLLBACK can take the connection.
 		h.rollbackAfterError()
 		writeJSON(w, runResponse{Error: friendlyRunError(err, h.status)})
 		return
@@ -230,6 +192,41 @@ func (h *Handler) handleRun(w http.ResponseWriter, r *http.Request) {
 		Rows:       result,
 		DurationMs: time.Since(start).Milliseconds(),
 	})
+}
+
+// collectRows runs query and materializes every row. The returned rows slice
+// is never nil, so an empty result marshals as [] rather than null. The
+// *sql.Rows are always closed before returning, which lets the caller run a
+// ROLLBACK on the single connection after a failure.
+func (h *Handler) collectRows(ctx context.Context, query string, args []any) ([]string, [][]any, error) {
+	rows, err := h.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, nil, err
+	}
+	defer rows.Close()
+
+	cols, err := rows.Columns()
+	if err != nil {
+		return nil, nil, err
+	}
+	result := [][]any{}
+	ptrs := make([]any, len(cols))
+	for rows.Next() {
+		vals := make([]any, len(cols))
+		for i := range vals {
+			ptrs[i] = &vals[i]
+		}
+		if err := rows.Scan(ptrs...); err != nil {
+			return nil, nil, err
+		}
+		result = append(result, vals)
+	}
+	// Next returns false on both end-of-rows and failure; without this check
+	// a mid-stream error would be reported as a shorter, successful result.
+	if err := rows.Err(); err != nil {
+		return nil, nil, err
+	}
+	return cols, result, nil
 }
 
 // rollbackAfterError clears an aborted transaction left behind by a failed
@@ -329,6 +326,11 @@ func (h *Handler) handleSchema(w http.ResponseWriter, r *http.Request) {
 }
 
 func writeJSON(w http.ResponseWriter, v any) {
+	writeJSONStatus(w, http.StatusOK, v)
+}
+
+func writeJSONStatus(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(v)
 }
