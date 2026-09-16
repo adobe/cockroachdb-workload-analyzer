@@ -10,6 +10,8 @@
 
 package catalog
 
+import "slices"
+
 // Query defines a preloaded diagnostic query.
 type Query struct {
 	ID           string `json:"id"`
@@ -22,7 +24,7 @@ type Query struct {
 
 // All returns all preloaded queries in display order.
 func All() []Query {
-	return append(append(append(statementQueries, transactionQueries...), indexQueries...), clusterQueries...)
+	return slices.Concat(statementQueries, transactionQueries, indexQueries, clusterQueries)
 }
 
 var statementQueries = []Query{
