@@ -284,35 +284,23 @@ func BuildFilteredSQL(q catalog.Query, db string) (string, []any) {
 		return q.SQL, nil
 	}
 	condition := q.DBFilterExpr + " = ?"
-	sql := q.SQL
-	if strings.Contains(sql, "WHERE") {
-		sql = injectAfterWhere(sql, "AND "+condition)
-	} else {
-		sql = injectWhereClause(sql, "WHERE "+condition)
+	clause := "WHERE " + condition
+	if strings.Contains(q.SQL, "WHERE") {
+		clause = "  AND " + condition
 	}
-	return sql, []any{db}
+	return injectBeforeTail(q.SQL, clause), []any{db}
 }
 
-// injectAfterWhere inserts condition before the first of GROUP BY/HAVING/ORDER BY/LIMIT.
-func injectAfterWhere(sql, condition string) string {
-	insertAt := firstKeyword(sql, []string{"GROUP BY", "HAVING", "ORDER BY", "LIMIT"})
-	return sql[:insertAt] + "  " + condition + "\n" + sql[insertAt:]
-}
-
-// injectWhereClause inserts clause before the first of GROUP BY/HAVING/ORDER BY/LIMIT.
-func injectWhereClause(sql, clause string) string {
-	insertAt := firstKeyword(sql, []string{"GROUP BY", "HAVING", "ORDER BY", "LIMIT"})
-	return sql[:insertAt] + clause + "\n" + sql[insertAt:]
-}
-
-func firstKeyword(sql string, keywords []string) int {
+// injectBeforeTail inserts clause (on its own line) before the first of
+// GROUP BY/HAVING/ORDER BY/LIMIT, or at the end when none is present.
+func injectBeforeTail(sql, clause string) string {
 	insertAt := len(sql)
-	for _, kw := range keywords {
+	for _, kw := range []string{"GROUP BY", "HAVING", "ORDER BY", "LIMIT"} {
 		if idx := strings.Index(sql, kw); idx >= 0 && idx < insertAt {
 			insertAt = idx
 		}
 	}
-	return insertAt
+	return sql[:insertAt] + clause + "\n" + sql[insertAt:]
 }
 
 type schemaResponse struct {
