@@ -8,7 +8,7 @@
 // OF ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { readItem, writeItem } from '../storage'
 
 const STORAGE_KEY = 'wa.drawerWidth'
@@ -31,25 +31,24 @@ function loadWidth(): number {
   return saved ? clampDrawerWidth(saved, viewportWidth()) : DEFAULT_WIDTH
 }
 
-// useDrawerWidth tracks the drawer's width, persists it to localStorage, and
-// returns a pointer-down handler that resizes by dragging the left edge (the
-// drawer is anchored right, so width = viewport - pointer x).
+// useDrawerWidth tracks the drawer's width, persists it to localStorage once
+// per drag, and returns a pointer-down handler that resizes by dragging the
+// left edge (the drawer is anchored right, so width = viewport - pointer x).
 export function useDrawerWidth() {
   const [width, setWidth] = useState<number>(loadWidth)
 
-  useEffect(() => {
-    writeItem(STORAGE_KEY, String(width))
-  }, [width])
-
   const startResize = useCallback((e: React.PointerEvent) => {
     e.preventDefault()
+    let latest: number | undefined
     const onMove = (ev: PointerEvent) => {
-      setWidth(clampDrawerWidth(window.innerWidth - ev.clientX, window.innerWidth))
+      latest = clampDrawerWidth(window.innerWidth - ev.clientX, window.innerWidth)
+      setWidth(latest)
     }
     const onUp = () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('pointerup', onUp)
       document.body.style.userSelect = ''
+      if (latest !== undefined) writeItem(STORAGE_KEY, String(latest))
     }
     // Suppress text selection while dragging.
     document.body.style.userSelect = 'none'
