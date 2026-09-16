@@ -14,19 +14,10 @@ import {
   CONTRAST_QUERY, LIGHT_QUERY,
 } from '../theme'
 import type { ThemeName, ThemePreference } from '../theme'
+import { safeLocalStorage } from '../storage'
 
 function mediaMatches(query: string): boolean {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia(query).matches
-}
-
-// Accessing window.localStorage itself can throw (blocked site data,
-// some private modes); readPreference/writePreference only guard the calls.
-function storage(): Storage | undefined {
-  try {
-    return globalThis.localStorage
-  } catch {
-    return undefined
-  }
 }
 
 // useTheme resolves the active theme (stored preference first, then the OS),
@@ -37,7 +28,7 @@ export function useTheme(): {
   preference: ThemePreference
   setPreference: (p: ThemePreference) => void
 } {
-  const [preference, setPreferenceState] = useState<ThemePreference>(() => readPreference(storage()))
+  const [preference, setPreferenceState] = useState<ThemePreference>(() => readPreference(safeLocalStorage()))
   const [system, setSystem] = useState<ThemeName>(() => systemTheme(mediaMatches))
 
   useEffect(() => {
@@ -67,7 +58,7 @@ export function useTheme(): {
   }, [theme])
 
   const setPreference = useCallback((p: ThemePreference) => {
-    writePreference(storage(), p)
+    writePreference(safeLocalStorage(), p)
     setPreferenceState(p)
   }, [])
 

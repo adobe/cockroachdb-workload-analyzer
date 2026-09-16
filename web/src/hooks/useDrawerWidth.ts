@@ -9,6 +9,7 @@
 // governing permissions and limitations under the License.
 
 import { useCallback, useEffect, useState } from 'react'
+import { readItem, writeItem } from '../storage'
 
 const STORAGE_KEY = 'wa.drawerWidth'
 const DEFAULT_WIDTH = 400
@@ -25,22 +26,9 @@ function viewportWidth(): number {
   return typeof window !== 'undefined' && window.innerWidth ? window.innerWidth : 1600
 }
 
-// localStorage may be absent (test env, privacy modes) — degrade gracefully.
 function loadWidth(): number {
-  try {
-    const saved = Number(globalThis.localStorage?.getItem(STORAGE_KEY))
-    return saved ? clampDrawerWidth(saved, viewportWidth()) : DEFAULT_WIDTH
-  } catch {
-    return DEFAULT_WIDTH
-  }
-}
-
-function saveWidth(width: number): void {
-  try {
-    globalThis.localStorage?.setItem(STORAGE_KEY, String(width))
-  } catch {
-    // ignore persistence failures
-  }
+  const saved = Number(readItem(STORAGE_KEY))
+  return saved ? clampDrawerWidth(saved, viewportWidth()) : DEFAULT_WIDTH
 }
 
 // useDrawerWidth tracks the drawer's width, persists it to localStorage, and
@@ -50,7 +38,7 @@ export function useDrawerWidth() {
   const [width, setWidth] = useState<number>(loadWidth)
 
   useEffect(() => {
-    saveWidth(width)
+    writeItem(STORAGE_KEY, String(width))
   }, [width])
 
   const startResize = useCallback((e: React.PointerEvent) => {
