@@ -56,17 +56,36 @@ function parseDetails(res: RunResult): StmtDetail[] {
   const iFull = idx('full_scan')
   const num = (row: unknown[], i: number): number | null =>
     i >= 0 && row[i] != null ? Number(row[i]) : null
-  return res.rows.map(r => {
-    const row = r as unknown[]
-    return {
-      fingerprintId: iFp >= 0 ? String(row[iFp] ?? '') : '',
-      queryText: iText >= 0 ? String(row[iText] ?? '') : '',
-      executions: num(row, iExec),
-      meanRunLatSec: num(row, iLat),
-      contentionSec: num(row, iCont),
-      fullScan: iFull >= 0 ? Boolean(row[iFull]) : false,
-    }
-  })
+  return res.rows.map(row => ({
+    fingerprintId: iFp >= 0 ? String(row[iFp] ?? '') : '',
+    queryText: iText >= 0 ? String(row[iText] ?? '') : '',
+    executions: num(row, iExec),
+    meanRunLatSec: num(row, iLat),
+    contentionSec: num(row, iCont),
+    fullScan: iFull >= 0 ? Boolean(row[iFull]) : false,
+  }))
+}
+
+// The two lookups tried in order for a clicked fingerprint: first as a
+// statement fingerprint (aggregate its own stats), then as a transaction
+// fingerprint (its constituent statements via the native
+// transaction_fingerprint_id column, heaviest first).
+function lookupSQL(safeId: string): [Exclude<DetailKind, 'none'>, string][] {
+  return [
+    ['statement', `SELECT ${STMT_DETAIL_COLS}
+FROM stmt_stats
+WHERE fingerprint_id = '${safeId}'
+GROUP BY fingerprint_id`],
+    ['transaction', `SELECT ${STMT_DETAIL_COLS}
+FROM stmt_stats
+WHERE transaction_fingerprint_id = '${safeId}'
+GROUP BY fingerprint_id
+ORDER BY
+  SUM(
+    CAST(json_extract(statistics, '$.statistics.cnt') AS DOUBLE) *
+    CAST(json_extract(statistics, '$.statistics.runLat.mean') AS DOUBLE)
+  ) DESC NULLS LAST`],
+  ]
 }
 
 export function useFingerprintDetail() {
@@ -81,45 +100,15 @@ export function useFingerprintDetail() {
     setKind('none')
     setError(null)
     try {
-      const safeId = fingerprintId.replace(/'/g, "''")
-
-      // Step 1: is this a statement fingerprint? Aggregate its own stats.
-      const stmt = await runQuery(
-        `SELECT ${STMT_DETAIL_COLS}
-FROM stmt_stats
-WHERE fingerprint_id = '${safeId}'
-GROUP BY fingerprint_id`
-      )
-      if (stmt.error) { setError(stmt.error); return }
-      if (stmt.rows.length > 0) {
-        setStatements(parseDetails(stmt))
-        setKind('statement')
-        return
+      for (const [k, sql] of lookupSQL(fingerprintId.replace(/'/g, "''"))) {
+        const res = await runQuery(sql)
+        if (res.error) { setError(res.error); return }
+        if (res.rows.length > 0) {
+          setStatements(parseDetails(res))
+          setKind(k)
+          return
+        }
       }
-
-      // Step 2: otherwise it may be a transaction fingerprint — resolve its
-      // constituent statements via the native transaction_fingerprint_id column
-      // in one grouped query (heaviest first).
-      const txn = await runQuery(
-        `SELECT ${STMT_DETAIL_COLS}
-FROM stmt_stats
-WHERE transaction_fingerprint_id = '${safeId}'
-GROUP BY fingerprint_id
-ORDER BY
-  SUM(
-    CAST(json_extract(statistics, '$.statistics.cnt') AS DOUBLE) *
-    CAST(json_extract(statistics, '$.statistics.runLat.mean') AS DOUBLE)
-  ) DESC NULLS LAST`
-      )
-      if (txn.error) { setError(txn.error); return }
-      if (txn.rows.length > 0) {
-        setStatements(parseDetails(txn))
-        setKind('transaction')
-        return
-      }
-
-      setStatements([])
-      setKind('none')
     } catch (e) {
       setError(String(e))
     } finally {

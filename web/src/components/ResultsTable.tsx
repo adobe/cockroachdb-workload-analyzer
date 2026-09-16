@@ -141,7 +141,7 @@ export function ResultsTable({ result, loading, onFingerprintClick }: Props) {
           <tbody>
             {sortedRows.map((row, i) => (
               <tr key={i}>
-                {(row as unknown[]).map((cell, j) => {
+                {row.map((cell, j) => {
                   if (j === fpColIndex && cell !== null) {
                     return (
                       <td key={j}>
