@@ -101,13 +101,13 @@ export function ResultsTable({ result, loading, onFingerprintClick }: Props) {
         <span>{sortedRows.length} rows · {result.duration_ms}ms</span>
         <span className="results-actions">
           <button
-            className="export-btn"
+            className="pill-btn"
             onClick={() => downloadText('workload-analyzer-result.csv', toCSV(columns, sortedRows), 'text/csv')}
           >
             CSV
           </button>
           <button
-            className="export-btn"
+            className="pill-btn"
             onClick={() => downloadText('workload-analyzer-result.json', toJSON(columns, sortedRows), 'application/json')}
           >
             JSON

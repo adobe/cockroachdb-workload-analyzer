@@ -70,11 +70,20 @@ governing permissions and limitations under the License.
 .missing-banner code { color: var(--warning); }
 .missing-banner-reason { color: var(--text-secondary); }
 .error-banner-text { flex: 1; color: var(--danger); }
-.missing-banner-close, .error-banner-close {
+
+/* Shared buttons: the "×" that dismisses banners, the drawer and the
+   shortcuts dialog, and the outlined pill used for Export and Copy. */
+.close-btn {
   background: none; border: none; color: var(--text-secondary);
   cursor: pointer; font-size: var(--text-lg); line-height: 1; flex-shrink: 0;
 }
-.missing-banner-close:hover, .error-banner-close:hover { color: var(--text-primary); }
+.close-btn:hover { color: var(--text-primary); }
+.pill-btn {
+  background: none; border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  color: var(--text-secondary); padding: 2px var(--space-2); font-size: var(--text-xs); cursor: pointer;
+}
+.pill-btn:hover:not(:disabled) { color: var(--text-primary); background: var(--bg-raised); }
+.pill-btn:disabled { opacity: 0.6; cursor: default; }
 
 /* Loading */
 .loading-screen {
@@ -96,11 +105,6 @@ governing permissions and limitations under the License.
   color: var(--text-secondary); font-size: var(--text-sm);
 }
 .results-actions { display: flex; gap: var(--space-2); }
-.export-btn {
-  background: none; border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
-  color: var(--text-secondary); padding: 2px var(--space-2); font-size: var(--text-xs); cursor: pointer;
-}
-.export-btn:hover { color: var(--text-primary); background: var(--bg-raised); }
 .results-scroll { flex: 1; overflow: auto; }
 .results-table { width: 100%; border-collapse: collapse; }
 .results-table th, .results-table td {
@@ -203,15 +207,7 @@ governing permissions and limitations under the License.
   padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--border-subtle);
 }
 .drawer-header-actions { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
-.drawer-copy {
-  background: none; border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
-  color: var(--text-secondary); cursor: pointer; font-size: var(--text-xs); padding: 2px var(--space-2);
-}
-.drawer-copy:hover:not(:disabled) { color: var(--text-primary); background: var(--bg-raised); }
-.drawer-copy:disabled { opacity: 0.6; cursor: default; }
 .drawer-title { font-family: var(--font-mono); font-size: var(--text-lg); color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; }
-.drawer-close { background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: var(--text-lg); }
-.drawer-close:hover { color: var(--text-primary); }
 .drawer-body { flex: 1; overflow-y: auto; padding: var(--space-4); }
 .drawer-body pre { font-size: var(--text-sm); line-height: 1.6; white-space: pre-wrap; word-break: break-word; color: var(--text-primary); }
 .drawer-stmt-label { color: var(--text-secondary); font-size: var(--text-sm); margin-bottom: var(--space-1); margin-top: var(--space-3); }

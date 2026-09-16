@@ -39,7 +39,7 @@ export function ShortcutsDialog({ open, onClose }: Props) {
       >
         <div className="drawer-header">
           <h2 id="shortcuts-title" className="shortcuts-title">Keyboard shortcuts</h2>
-          <button ref={closeRef} className="drawer-close" onClick={onClose} aria-label="Close">×</button>
+          <button ref={closeRef} className="close-btn" onClick={onClose} aria-label="Close">×</button>
         </div>
         <div className="shortcuts-body">
           {SHORTCUT_GROUPS.map(group => (

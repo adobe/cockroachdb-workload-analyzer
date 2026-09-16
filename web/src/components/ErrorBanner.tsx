@@ -25,7 +25,7 @@ export function ErrorBanner({
     <div className="error-banner" role="alert">
       <span className="error-banner-text">{message}</span>
       {onDismiss && (
-        <button type="button" className="error-banner-close" onClick={onDismiss} aria-label="Dismiss">
+        <button type="button" className="close-btn" onClick={onDismiss} aria-label="Dismiss">
           ×
         </button>
       )}

@@ -81,14 +81,14 @@ export function FingerprintDrawer({ fingerprint, onClose }: Props) {
           <span className="drawer-title" title={fingerprint}>{fingerprint}</span>
           <div className="drawer-header-actions">
             <button
-              className="drawer-copy"
+              className="pill-btn"
               onClick={handleCopy}
               disabled={loading}
               aria-label="Copy drawer contents"
             >
               {copied ? 'Copied' : 'Copy'}
             </button>
-            <button ref={closeRef} className="drawer-close" onClick={onClose} aria-label="Close">×</button>
+            <button ref={closeRef} className="close-btn" onClick={onClose} aria-label="Close">×</button>
           </div>
         </div>
         <div className="drawer-body">

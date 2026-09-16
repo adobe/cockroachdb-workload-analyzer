@@ -34,7 +34,7 @@ export function MissingTablesBanner({ tables }: { tables: TableEntry[] }) {
         . Queries against them will be unavailable.
       </span>
       <button
-        className="missing-banner-close"
+        className="close-btn"
         onClick={() => setDismissed(true)}
         aria-label="Dismiss"
       >
