@@ -4,6 +4,10 @@ An interactive offline analysis tool for [CockroachDB workload-exporter](https:/
 
 Point it at a zip file, and a browser opens with 26 preloaded diagnostic queries and a free SQL editor backed by [DuckDB](https://duckdb.org/); no database server, no cloud, no data leaves your machine.
 
+![Tour of the analyzer: preloaded queries, database filter, sorting, fingerprint drawer, SQL editor, schema view, keyboard shortcuts and dark theme](https://raw.githubusercontent.com/adobe/cockroachdb-workload-analyzer/media/demo.gif)
+
+<sup>[Watch as MP4](https://raw.githubusercontent.com/adobe/cockroachdb-workload-analyzer/media/demo.mp4)· recorded from the `movr` sample export</sup>
+
 ## Install
 
 Grab a prebuilt binary from the [latest release](https://github.com/adobe/cockroachdb-workload-analyzer/releases/latest) (macOS arm64, Linux x86-64), verify the checksum, and run it:
@@ -33,11 +37,11 @@ The tool ships as a **single binary**. The React frontend is embedded via `go:em
 
 Three tabs:
 
-| Tab | What it does |
-|-----|-------------|
+| Tab          | What it does                                                                                                                                                                                                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **Analysis** | Click any of the 26 preloaded queries in the sidebar — results appear immediately. Click a `fingerprint_id` to open a resizable drawer with the query text and per-statement stats (transactions resolve to their constituent statements), with a button to copy the contents. |
-| **SQL** | Free-form DuckDB SQL editor (Monaco). Press `Cmd+Enter` / `Ctrl+Enter` to run. |
-| **Schema** | Raw DDL from the export's `.schema.txt` files, one database per dropdown. |
+| **SQL**      | Free-form DuckDB SQL editor (Monaco). Press `Cmd+Enter` / `Ctrl+Enter` to run.                                                                                                                                                                                                 |
+| **Schema**   | Raw DDL from the export's `.schema.txt` files, one database per dropdown.                                                                                                                                                                                                      |
 
 Any result grid (Analysis or SQL) sorts client-side: click a column header to cycle ascending → descending → original order. Numeric columns (including bigint/decimal values the export ships as strings) sort numerically, other columns lexically, and NULLs always sort last. CSV/JSON export reflects the current sorted order.
 
@@ -45,34 +49,34 @@ The UI is keyboard-navigable: `1`/`2`/`3` switch tabs, `j`/`k` step through the 
 
 ## Preloaded queries
 
-| Category | Query |
-|----------|-------|
-| Statements | Slowest by Mean Latency |
-| Statements | Top CPU Consumers |
-| Statements | Full Table Scans |
-| Statements | Index Recommendations |
-| Statements | High Error Rates |
-| Statements | High Contention Time |
-| Statements | Memory & Disk Spill |
-| Statements | Admission Control Wait |
-| Statements | Plan Instability |
-| Statements | Top Index Recommendations |
-| Statements | Rows-Read Amplification |
-| Statements | Latency Decomposition |
-| Statements | Latency Percentiles by App |
-| Transactions | Slowest by Service Latency |
-| Transactions | High Retry Rates |
-| Transactions | Slow Commit Latency |
-| Transactions | Transaction Statement Breakdown |
-| Transactions | Contention Hotspots |
-| Indexes | Unused Indexes |
-| Indexes | Rarely Used Indexes |
-| Indexes | Table Statistics Audit |
-| Indexes | Stale Table Statistics |
-| Cluster | Non-Default Cluster Settings |
-| Cluster | Node CPU & Memory |
-| Cluster | Non-Default Settings (System VC) |
-| Cluster | Persisted System Settings |
+| Category     | Query                            |
+| ------------ | -------------------------------- |
+| Statements   | Slowest by Mean Latency          |
+| Statements   | Top CPU Consumers                |
+| Statements   | Full Table Scans                 |
+| Statements   | Index Recommendations            |
+| Statements   | High Error Rates                 |
+| Statements   | High Contention Time             |
+| Statements   | Memory & Disk Spill              |
+| Statements   | Admission Control Wait           |
+| Statements   | Plan Instability                 |
+| Statements   | Top Index Recommendations        |
+| Statements   | Rows-Read Amplification          |
+| Statements   | Latency Decomposition            |
+| Statements   | Latency Percentiles by App       |
+| Transactions | Slowest by Service Latency       |
+| Transactions | High Retry Rates                 |
+| Transactions | Slow Commit Latency              |
+| Transactions | Transaction Statement Breakdown  |
+| Transactions | Contention Hotspots              |
+| Indexes      | Unused Indexes                   |
+| Indexes      | Rarely Used Indexes              |
+| Indexes      | Table Statistics Audit           |
+| Indexes      | Stale Table Statistics           |
+| Cluster      | Non-Default Cluster Settings     |
+| Cluster      | Node CPU & Memory                |
+| Cluster      | Non-Default Settings (System VC) |
+| Cluster      | Persisted System Settings        |
 
 All queries use DuckDB JSON path extraction against the CSV files in the export; they run entirely in-process, no network calls.
 
@@ -129,7 +133,7 @@ The tool runs **locally, on your own machine, against your own export**. The fre
 - **Loopback only** — the HTTP server binds to `127.0.0.1`, so `/api/run` is not reachable from the network.
 - **Cross-site requests refused** — loopback binding alone doesn't stop your own browser: any website you visit can fire cross-origin requests at `http://localhost:<port>`. The server rejects requests whose `Origin` is not a loopback origin (CSRF) and requests whose `Host` header is not a loopback name (DNS rebinding).
 - **Read-only after load** — the export is loaded into a DuckDB database file in the same per-run temp directory as the extracted CSVs. Once loading completes, that file is closed and reopened with `access_mode=read_only`, so DuckDB itself rejects `DROP`, `INSERT`, `UPDATE`, `ALTER`, `CREATE`, `ATTACH` and every other statement that would change the export — this is enforced by the engine, not by filtering SQL text. Scratch `CREATE TEMP TABLE`s are still allowed; they live outside the export and vanish with the session. (DuckDB can't switch a running database to read-only and won't open an in-memory one read-only at all, which is why the export lives in a file rather than in memory.)
-- **No file access after load** — at the same time, DuckDB's `enable_external_access` is switched off (a one-way switch DuckDB won't let a query re-enable) and the configuration is locked with `lock_configuration`, so no setting can be changed from SQL afterwards. The SQL editor can run arbitrary *read-only* SQL over the loaded tables, but can't read other files on disk via `read_csv`/`COPY`/`ATTACH`. Free-form SQL is refused until this lockdown is in place — "ready" means *loaded, read-only and hardened* — so there is no window where user-supplied SQL runs with write or file access.
+- **No file access after load** — at the same time, DuckDB's `enable_external_access` is switched off (a one-way switch DuckDB won't let a query re-enable) and the configuration is locked with `lock_configuration`, so no setting can be changed from SQL afterwards. The SQL editor can run arbitrary _read-only_ SQL over the loaded tables, but can't read other files on disk via `read_csv`/`COPY`/`ATTACH`. Free-form SQL is refused until this lockdown is in place — "ready" means _loaded, read-only and hardened_ — so there is no window where user-supplied SQL runs with write or file access.
 - **Local & ephemeral** — nothing is written back to any cluster; the extracted CSVs and the DuckDB file live only in a temp directory that is removed on exit.
 
 ## Prerequisites
@@ -197,29 +201,29 @@ cd web && npm run dev          # → http://localhost:5173
 
 The backend exposes six read-only JSON endpoints:
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/status` | Loading state, progress (0–1), per-table status |
-| `GET /api/meta` | Cluster version, org, export time range |
-| `GET /api/queries` | Catalog of 26 query descriptors (add `?full=1` to include SQL) |
-| `POST /api/run` | Execute arbitrary DuckDB SQL (`{"sql":"..."}`) or a catalog query (`{"query_id":"...","db":"..."}`) |
-| `GET /api/schema` | Raw DDL text, keyed by database name |
-| `GET /api/databases` | Distinct database names in the statement stats (for the filter picker) |
+| Endpoint             | Description                                                                                         |
+| -------------------- | --------------------------------------------------------------------------------------------------- |
+| `GET /api/status`    | Loading state, progress (0–1), per-table status                                                     |
+| `GET /api/meta`      | Cluster version, org, export time range                                                             |
+| `GET /api/queries`   | Catalog of 26 query descriptors (add `?full=1` to include SQL)                                      |
+| `POST /api/run`      | Execute arbitrary DuckDB SQL (`{"sql":"..."}`) or a catalog query (`{"query_id":"...","db":"..."}`) |
+| `GET /api/schema`    | Raw DDL text, keyed by database name                                                                |
+| `GET /api/databases` | Distinct database names in the statement stats (for the filter picker)                              |
 
 ## DuckDB table names
 
 The following tables are available in the SQL editor:
 
-| Table | Source CSV |
-|-------|-----------|
-| `stmt_stats` | `crdb_internal.statement_statistics.csv` |
-| `txn_stats` | `crdb_internal.transaction_statistics.csv` |
-| `txn_contention` | `crdb_internal.transaction_contention_events.csv` |
-| `idx_usage` | `crdb_internal.index_usage_statistics.csv` |
-| `table_indexes` | `crdb_internal.table_indexes.csv` |
-| `cluster_settings` | `crdb_internal.cluster_settings.csv` |
-| `table_stats` | `system.table_statistics.csv` |
-| `node_cpu_mem` | `crdb_internal.node_cpu_mem.csv` |
+| Table              | Source CSV                                        |
+| ------------------ | ------------------------------------------------- |
+| `stmt_stats`       | `crdb_internal.statement_statistics.csv`          |
+| `txn_stats`        | `crdb_internal.transaction_statistics.csv`        |
+| `txn_contention`   | `crdb_internal.transaction_contention_events.csv` |
+| `idx_usage`        | `crdb_internal.index_usage_statistics.csv`        |
+| `table_indexes`    | `crdb_internal.table_indexes.csv`                 |
+| `cluster_settings` | `crdb_internal.cluster_settings.csv`              |
+| `table_stats`      | `system.table_statistics.csv`                     |
+| `node_cpu_mem`     | `crdb_internal.node_cpu_mem.csv`                  |
 
 ## Acknowledgements
 
