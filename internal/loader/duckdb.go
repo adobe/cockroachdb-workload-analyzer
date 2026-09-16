@@ -13,7 +13,7 @@ package loader
 import (
 	"database/sql"
 	"fmt"
-	"os"
+	"log"
 	"sync"
 
 	_ "github.com/marcboeker/go-duckdb"
@@ -35,21 +35,24 @@ type TableEntry struct {
 
 // tableConfigs maps CSV filename → DuckDB table name, in load priority order.
 // Small tables first; statement_statistics.csv (potentially ~969 MB) last.
+// postLoad, when set, runs after the table is created; its failure is
+// logged but does not mark the table as failed.
 var tableConfigs = []struct {
 	csvName   string
 	tableName string
+	postLoad  func(execer) error
 }{
-	{"crdb_internal.cluster_settings.csv", "cluster_settings"},
-	{"crdb_internal.cluster_settings.system.csv", "cluster_settings_system"},
-	{"system.settings.csv", "system_settings"},
-	{"crdb_internal.gossip_nodes.csv", "gossip_nodes"},
-	{"crdb_internal.index_usage_statistics.csv", "idx_usage"},
-	{"crdb_internal.table_indexes.csv", "table_indexes"},
-	{"crdb_internal.node_cpu_mem.csv", "node_cpu_mem"},
-	{"crdb_internal.transaction_contention_events.csv", "txn_contention"},
-	{"system.table_statistics.csv", "table_stats"},
-	{"crdb_internal.transaction_statistics.csv", "txn_stats"},
-	{"crdb_internal.statement_statistics.csv", "stmt_stats"},
+	{"crdb_internal.cluster_settings.csv", "cluster_settings", nil},
+	{"crdb_internal.cluster_settings.system.csv", "cluster_settings_system", nil},
+	{"system.settings.csv", "system_settings", nil},
+	{"crdb_internal.gossip_nodes.csv", "gossip_nodes", nil},
+	{"crdb_internal.index_usage_statistics.csv", "idx_usage", nil},
+	{"crdb_internal.table_indexes.csv", "table_indexes", nil},
+	{"crdb_internal.node_cpu_mem.csv", "node_cpu_mem", nil},
+	{"crdb_internal.transaction_contention_events.csv", "txn_contention", nil},
+	{"system.table_statistics.csv", "table_stats", nil},
+	{"crdb_internal.transaction_statistics.csv", "txn_stats", nil},
+	{"crdb_internal.statement_statistics.csv", "stmt_stats", normalizeStmtStatsDB},
 }
 
 func NewLoadStatus() *LoadStatus {
@@ -142,10 +145,10 @@ func LoadCSVs(db execer, files ExtractedFiles, status *LoadStatus) {
 		if err := loadCSVTable(db, cfg.tableName, path); err != nil {
 			status.addEntry(cfg.tableName, false, err.Error())
 		} else {
-			if cfg.tableName == "stmt_stats" {
-				if err := normalizeStmtStatsDB(db); err != nil {
-					// Non-fatal: filtering/dropdown degrade, but the table is usable.
-					fmt.Fprintf(os.Stderr, "warning: normalizing stmt_stats database column: %v\n", err)
+			if cfg.postLoad != nil {
+				if err := cfg.postLoad(db); err != nil {
+					// Non-fatal: the table is usable, only the fix-up is missing.
+					log.Printf("warning: post-load step for %s: %v", cfg.tableName, err)
 				}
 			}
 			status.addEntry(cfg.tableName, true, "")
