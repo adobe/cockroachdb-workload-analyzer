@@ -22,22 +22,13 @@ import { useSchema } from './hooks/useSchema'
 import { useTheme } from './hooks/useTheme'
 import { ThemeSelect } from './components/ThemeSelect'
 import { TabBar } from './components/TabBar'
-import type { TabDef } from './components/TabBar'
-import { tabId, tabPanelId } from './tabIds'
+import { TABS, tabId, tabPanelId } from './tabIds'
+import type { Tab } from './tabIds'
 import { ShortcutsDialog } from './components/ShortcutsDialog'
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
 import { AnalysisTab } from './components/tabs/AnalysisTab'
 import { SqlTab } from './components/tabs/SqlTab'
 import { SchemaTab } from './components/tabs/SchemaTab'
-
-type Tab = 'analysis' | 'sql' | 'schema'
-
-// Order matters: the digit shortcuts (1, 2, 3) follow it.
-const TABS: TabDef<Tab>[] = [
-  { id: 'analysis', label: 'Analysis' },
-  { id: 'sql', label: 'SQL' },
-  { id: 'schema', label: 'Schema' },
-]
 
 export default function App() {
   const status = useStatus()

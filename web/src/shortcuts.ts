@@ -13,6 +13,8 @@
 // next to the guards means adding a binding and documenting it happen in the
 // same file.
 
+import { TABS } from './tabIds'
+
 export interface Shortcut {
   // Alternatives that do the same thing (["←", "→"] is rendered "← or →").
   // A chord is one entry with its parts joined by "+" ("⌘+↵").
@@ -61,9 +63,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
   {
     title: 'Tabs',
     shortcuts: [
-      { keys: ['1'], description: 'Go to the Analysis tab' },
-      { keys: ['2'], description: 'Go to the SQL tab' },
-      { keys: ['3'], description: 'Go to the Schema tab' },
+      ...TABS.map((t, i) => ({ keys: [String(i + 1)], description: `Go to the ${t.label} tab` })),
       { keys: ['←', '→'], description: 'Previous or next tab, after selecting one with a digit, click or Tab' },
       { keys: ['Home', 'End'], description: 'First or last tab, after selecting one with a digit, click or Tab' },
     ],

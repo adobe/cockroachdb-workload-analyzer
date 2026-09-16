@@ -18,7 +18,7 @@ export interface TabDef<T extends string> {
 }
 
 interface Props<T extends string> {
-  tabs: TabDef<T>[]
+  tabs: readonly TabDef<T>[]
   active: T
   onChange: (id: T) => void
   // Rendered after the tabs, inside the bar (the database picker).

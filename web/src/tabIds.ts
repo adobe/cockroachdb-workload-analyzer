@@ -8,8 +8,17 @@
 // OF ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 
-// Element ids that pair each tab with its panel (aria-controls and
-// aria-labelledby). Shared by TabBar and the panel container in App.
+// The app's tabs, and the element ids that pair each tab with its panel
+// (aria-controls and aria-labelledby). Shared by App, TabBar and the
+// shortcuts catalog, which derives the digit shortcuts from this order.
+
+export type Tab = 'analysis' | 'sql' | 'schema'
+
+export const TABS: readonly { id: Tab; label: string }[] = [
+  { id: 'analysis', label: 'Analysis' },
+  { id: 'sql', label: 'SQL' },
+  { id: 'schema', label: 'Schema' },
+]
 
 export function tabId(id: string) {
   return `tab-${id}`
