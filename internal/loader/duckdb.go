@@ -65,12 +65,6 @@ func (s *LoadStatus) State() string {
 	return s.state
 }
 
-func (s *LoadStatus) Progress() float64 {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.progress
-}
-
 func (s *LoadStatus) Snapshot() (state string, progress float64, tables []TableEntry) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

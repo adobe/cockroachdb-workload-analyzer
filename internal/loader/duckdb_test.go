@@ -60,7 +60,7 @@ func TestLoadStatus_Progress(t *testing.T) {
 	if status.State() != "loading" {
 		t.Errorf("expected initial state 'loading', got %s", status.State())
 	}
-	if status.Progress() != 0 {
-		t.Errorf("expected initial progress 0, got %f", status.Progress())
+	if _, progress, _ := status.Snapshot(); progress != 0 {
+		t.Errorf("expected initial progress 0, got %f", progress)
 	}
 }
