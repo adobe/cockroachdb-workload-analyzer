@@ -2,7 +2,7 @@ module github.com/adobe/cockroachdb-workload-analyzer
 
 go 1.24.4
 
-toolchain go1.26.6
+toolchain go1.27.1
 
 require github.com/marcboeker/go-duckdb v1.8.5
 
