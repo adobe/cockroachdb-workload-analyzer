@@ -10,7 +10,7 @@
 
 import { useEffect, useState } from 'react'
 import type { QueryDef, RunResult } from '../../api'
-import { runCatalogQuery } from '../../api'
+import { runCatalogQuery, runFailure } from '../../api'
 import { QueryList } from '../QueryList'
 import { ResultsTable } from '../ResultsTable'
 
@@ -38,14 +38,12 @@ function QueryResult({
   useEffect(() => {
     let ignore = false
     runCatalogQuery(queryId, db)
-      .then(r => { if (!ignore) setResult(r) })
-      .catch(err => {
-        // Surface the failure through ResultsTable's error state rather than
-        // rendering an indistinguishable "No results".
-        console.error(err)
-        if (!ignore) setResult({ columns: [], rows: [], duration_ms: 0, error: 'Query failed to run. The server may be unavailable — try reloading.' })
+      .catch(runFailure)
+      .then(r => {
+        if (ignore) return
+        setResult(r)
+        setLoading(false)
       })
-      .finally(() => { if (!ignore) setLoading(false) })
     return () => { ignore = true }
   }, [queryId, db])
 

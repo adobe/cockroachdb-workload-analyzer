@@ -103,32 +103,34 @@ export function fetchSchema(): Promise<SchemaResult> {
   return requestJSON('/api/schema')
 }
 
-// normalizeRun guards against a null `rows` (a zero-row result serializes to
-// null server-side); components read result.rows.length without a null check.
-function normalizeRun(r: RunResult): RunResult {
+// postRun is the one call to /api/run. The server always sends an array for a
+// successful result, but its error responses carry `rows: null`, and
+// ResultsTable reads result.rows without a null check.
+async function postRun(body: object): Promise<RunResult> {
+  const r = await requestJSON<RunResult>('/api/run', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
   return { ...r, rows: r.rows ?? [] }
 }
 
-export async function runQuery(sql: string): Promise<RunResult> {
-  return normalizeRun(
-    await requestJSON<RunResult>('/api/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sql }),
-    }),
-  )
+export function runQuery(sql: string): Promise<RunResult> {
+  return postRun({ sql })
+}
+
+export function runCatalogQuery(queryId: string, db: string): Promise<RunResult> {
+  return postRun({ query_id: queryId, db })
+}
+
+// runFailure turns a rejected run (HTTP failure, network error) into a
+// RunResult that ResultsTable shows through its error state, so the failure
+// never becomes an unhandled rejection that leaves the pane on "No results".
+export function runFailure(err: unknown): RunResult {
+  console.error(err)
+  return { columns: [], rows: [], duration_ms: 0, error: 'Query failed to run. The server may be unavailable — try reloading.' }
 }
 
 export function fetchDatabases(): Promise<string[]> {
   return requestJSON('/api/databases')
-}
-
-export async function runCatalogQuery(queryId: string, db: string): Promise<RunResult> {
-  return normalizeRun(
-    await requestJSON<RunResult>('/api/run', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query_id: queryId, db }),
-    }),
-  )
 }

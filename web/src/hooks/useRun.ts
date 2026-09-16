@@ -9,7 +9,7 @@
 // governing permissions and limitations under the License.
 
 import { useCallback, useState } from 'react'
-import { runQuery } from '../api'
+import { runFailure, runQuery } from '../api'
 import type { RunResult } from '../api'
 
 export function useRun() {
@@ -19,18 +19,8 @@ export function useRun() {
   const run = useCallback(async (sql: string) => {
     setLoading(true)
     setResult(null)
-    try {
-      const r = await runQuery(sql)
-      setResult(r)
-    } catch (err) {
-      // A rejected runQuery (HTTP failure, network error) would otherwise be an
-      // unhandled rejection that leaves the pane on "No results". Surface it
-      // through ResultsTable's error state instead.
-      console.error(err)
-      setResult({ columns: [], rows: [], duration_ms: 0, error: 'Query failed to run. The server may be unavailable — try reloading.' })
-    } finally {
-      setLoading(false)
-    }
+    setResult(await runQuery(sql).catch(runFailure))
+    setLoading(false)
   }, [])
 
   return { result, loading, run }
