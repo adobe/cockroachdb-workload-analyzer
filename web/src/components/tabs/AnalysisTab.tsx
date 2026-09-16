@@ -20,8 +20,8 @@ interface Props {
   onFingerprintClick?: (id: string) => void
 }
 
-// QueryResult fetches and renders a single catalog query. It is mounted with a
-// key of `${queryId}-${db}` so a query/db change remounts it with fresh initial
+// QueryResult fetches and renders a single catalog query. It is keyed on
+// `${queryId}-${db}` so a query/db change remounts it with fresh initial
 // state instead of resetting state synchronously inside an effect.
 function QueryResult({
   queryId,
@@ -54,8 +54,8 @@ export function AnalysisTab({ queries, selectedDb, onFingerprintClick }: Props) 
   const [activeId, setActiveId] = useState<string | null>(null)
 
   const active = queries.find(q => q.id === activeId)
-  // Non-filterable queries ignore the selected database, so they should not
-  // refetch (remount) when it changes.
+  // Non-filterable queries ignore the selected database, so they must not
+  // refetch when it changes: the key and the db prop both use this value.
   const effectiveDb = active?.db_filter_expr ? selectedDb : ''
 
   return (
@@ -80,7 +80,7 @@ export function AnalysisTab({ queries, selectedDb, onFingerprintClick }: Props) 
           <QueryResult
             key={`${activeId}-${effectiveDb}`}
             queryId={activeId}
-            db={selectedDb}
+            db={effectiveDb}
             onFingerprintClick={onFingerprintClick}
           />
         ) : (
