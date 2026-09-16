@@ -1,6 +1,20 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
-  ]
+  "extends": ["config:recommended"],
+  "timezone": "America/Chicago",
+  "schedule": ["* * 1-7,15-21 * 1"],
+  "updateNotScheduled": false,
+  "minimumReleaseAge": "7 days",
+  "internalChecksFilter": "strict",
+  "packageRules": [
+    {
+      "description": "Batch every non-major bump into one PR per scheduled window",
+      "groupName": "all non-major dependencies",
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "matchPackageNames": ["*"]
+    }
+  ],
+  "vulnerabilityAlerts": {
+    "labels": ["security"]
+  }
 }
