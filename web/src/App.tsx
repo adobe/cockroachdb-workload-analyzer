@@ -65,10 +65,7 @@ export default function App() {
       console.error(err)
     })
     fetchQueries()
-      .then(qs => {
-        setQueries(qs)
-        setQueriesError(null)
-      })
+      .then(setQueries)
       .catch(err => {
         console.error(err)
         setQueriesError("Couldn't load the analysis queries. The server may be unavailable — try reloading.")
@@ -78,10 +75,7 @@ export default function App() {
   useEffect(() => {
     if (status.state === 'ready') {
       fetchDatabases()
-        .then(dbs => {
-          setDatabases(dbs)
-          setDatabasesError(null)
-        })
+        .then(setDatabases)
         .catch(err => {
           console.error(err)
           setDatabasesError("Couldn't load the database list. The server may be unavailable — try reloading.")
@@ -101,9 +95,9 @@ export default function App() {
   }
 
   // The query and database loads share one banner. Each keeps its own error
-  // state (so a later success clears only its own message), but we render a
-  // single alert: the specific message when one fails, a merged one when both
-  // do — rather than stacking two near-identical "server unavailable" banners.
+  // state, but we render a single alert: the specific message when one fails,
+  // a merged one when both do — rather than stacking two near-identical
+  // "server unavailable" banners.
   const loadError =
     queriesError && databasesError
       ? "Couldn't load the analysis queries or the database list. The server may be unavailable — try reloading."
