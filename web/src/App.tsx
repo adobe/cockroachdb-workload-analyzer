@@ -21,16 +21,39 @@ import { useStatus } from './hooks/useStatus'
 import { useSchema } from './hooks/useSchema'
 import { useTheme } from './hooks/useTheme'
 import { ThemeSelect } from './components/ThemeSelect'
+import { TabBar } from './components/TabBar'
+import type { TabDef } from './components/TabBar'
+import { tabId, tabPanelId } from './tabIds'
+import { ShortcutsDialog } from './components/ShortcutsDialog'
+import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
 import { AnalysisTab } from './components/tabs/AnalysisTab'
 import { SqlTab } from './components/tabs/SqlTab'
 import { SchemaTab } from './components/tabs/SchemaTab'
 
 type Tab = 'analysis' | 'sql' | 'schema'
 
+// Order matters: the digit shortcuts (1, 2, 3) follow it.
+const TABS: TabDef<Tab>[] = [
+  { id: 'analysis', label: 'Analysis' },
+  { id: 'sql', label: 'SQL' },
+  { id: 'schema', label: 'Schema' },
+]
+
 export default function App() {
   const status = useStatus()
   const { theme, preference, setPreference } = useTheme()
   const [tab, setTab] = useState<Tab>('analysis')
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  useGlobalShortcuts({
+    onTab: i => {
+      if (!TABS[i]) return
+      setTab(TABS[i].id)
+      // Also move focus to the tab, so Left/Right and Home/End work next.
+      // The digit is handled page-wide, so nothing in the tab bar has focus.
+      document.getElementById(tabId(TABS[i].id))?.focus()
+    },
+    onHelp: () => setShortcutsOpen(true),
+  })
   const [meta, setMeta] = useState<MetaResult | null>(null)
   const [queries, setQueries] = useState<QueryDef[]>([])
   const [selectedDb, setSelectedDb] = useState('')
@@ -102,20 +125,19 @@ export default function App() {
   return (
     <div className="app">
       <MetaBar meta={meta} filename="workload export">
+        <button
+          className="shortcuts-btn"
+          onClick={() => setShortcutsOpen(true)}
+          aria-label="Keyboard shortcuts"
+          title="Keyboard shortcuts (?)"
+        >
+          <kbd>?</kbd>
+        </button>
         <ThemeSelect preference={preference} theme={theme} onChange={setPreference} />
       </MetaBar>
       <ErrorBanner message={loadError} onDismiss={dismissLoadError} />
       <MissingTablesBanner tables={status.tables} />
-      <nav className="tab-bar">
-        {(['analysis', 'sql', 'schema'] as Tab[]).map(t => (
-          <button
-            key={t}
-            className={`tab-btn${tab === t ? ' active' : ''}`}
-            onClick={() => setTab(t)}
-          >
-            {t.charAt(0).toUpperCase() + t.slice(1)}
-          </button>
-        ))}
+      <TabBar tabs={TABS} active={tab} onChange={setTab}>
         {tab === 'schema' ? (
           schema.databases.length > 0 && (
             <DatabasePicker
@@ -131,24 +153,29 @@ export default function App() {
             <DatabasePicker databases={databases} selected={selectedDb} onSelect={setSelectedDb} />
           )
         )}
-      </nav>
+      </TabBar>
       <main className="tab-content">
-        {tab === 'analysis' && (
-          <AnalysisTab
-            queries={queries}
-            selectedDb={selectedDb}
-            onFingerprintClick={setClickedFingerprint}
-          />
-        )}
-        {tab === 'sql' && <SqlTab queries={queries} theme={theme} onFingerprintClick={setClickedFingerprint} />}
-        {tab === 'schema' && (
-          <SchemaTab ddl={schema.ddl} error={schema.error} onDismissError={schema.dismissError} />
-        )}
+        {/* The panel is a child of main rather than main itself, so the page
+            keeps its main landmark alongside the tabpanel role. */}
+        <div className="tab-panel" role="tabpanel" id={tabPanelId(tab)} aria-labelledby={tabId(tab)}>
+          {tab === 'analysis' && (
+            <AnalysisTab
+              queries={queries}
+              selectedDb={selectedDb}
+              onFingerprintClick={setClickedFingerprint}
+            />
+          )}
+          {tab === 'sql' && <SqlTab queries={queries} theme={theme} onFingerprintClick={setClickedFingerprint} />}
+          {tab === 'schema' && (
+            <SchemaTab ddl={schema.ddl} error={schema.error} onDismissError={schema.dismissError} />
+          )}
+        </div>
       </main>
       <FingerprintDrawer
         fingerprint={clickedFingerprint}
         onClose={() => setClickedFingerprint(null)}
       />
+      <ShortcutsDialog open={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
     </div>
   )
 }

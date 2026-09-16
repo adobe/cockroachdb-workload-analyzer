@@ -9,9 +9,16 @@
 // governing permissions and limitations under the License.
 
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 import { AnalysisTab } from './AnalysisTab'
+import { runCatalogQuery } from '../../api'
 import type { QueryDef } from '../../api'
+
+vi.mock('../../api', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../api')>()
+  return { ...actual, runCatalogQuery: vi.fn() }
+})
 
 // The query catalog is now owned by App and passed in via props, so AnalysisTab
 // no longer fetches it (and no longer surfaces a load error — App does). These
@@ -36,5 +43,18 @@ describe('AnalysisTab', () => {
   it('renders no query buttons when the catalog is empty', () => {
     render(<AnalysisTab queries={[]} selectedDb="" />)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
+  })
+
+  it('opens the next query as the keyboard cursor moves through the list', async () => {
+    vi.mocked(runCatalogQuery).mockResolvedValue({ columns: [], rows: [], duration_ms: 0 })
+    const two = [
+      ...queries,
+      { ...queries[0], id: 'stmt-top-latency', name: 'Top Latency' },
+    ]
+    render(<AnalysisTab queries={two} selectedDb="" />)
+    screen.getByRole('button', { name: 'Top CPU Consumers' }).focus()
+    await userEvent.keyboard('{ArrowDown}')
+    expect(screen.getByRole('heading', { name: 'Top Latency' })).toBeInTheDocument()
+    expect(runCatalogQuery).toHaveBeenCalledWith('stmt-top-latency', '')
   })
 })

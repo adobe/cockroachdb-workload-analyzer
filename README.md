@@ -41,6 +41,8 @@ Three tabs:
 
 Any result grid (Analysis or SQL) sorts client-side: click a column header to cycle ascending → descending → original order. Numeric columns (including bigint/decimal values the export ships as strings) sort numerically, other columns lexically, and NULLs always sort last. CSV/JSON export reflects the current sorted order.
 
+The UI is keyboard-navigable: `1`/`2`/`3` switch tabs, `j`/`k` step through the query list (arrow keys work when the tab bar or list has focus), and `?` opens a dialog listing every shortcut.
+
 ## Preloaded queries
 
 | Category | Query |

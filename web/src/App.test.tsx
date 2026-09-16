@@ -100,7 +100,7 @@ describe('App database picker per tab', () => {
 
   it('shows the schema database picker in the tab bar without an "All databases" option', async () => {
     render(<App />)
-    await userEvent.click(screen.getByRole('button', { name: 'Schema' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Schema' }))
     const picker = await screen.findByRole('combobox', { name: 'Select database schema' })
     expect(screen.getByRole('navigation')).toContainElement(picker)
     expect(screen.getAllByRole('option').filter(o => o.closest('select') === picker).map(o => o.textContent)).toEqual(['prod', 'staging'])
@@ -111,19 +111,116 @@ describe('App database picker per tab', () => {
     render(<App />)
     await screen.findByRole('combobox', { name: 'Filter by database' })
     expect(fetchSchema).not.toHaveBeenCalled()
-    await userEvent.click(screen.getByRole('button', { name: 'Schema' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Schema' }))
     await screen.findByRole('combobox', { name: 'Select database schema' })
     expect(fetchSchema).toHaveBeenCalledTimes(1)
   })
 
   it('switches back to the filter picker with "All databases" on the Analysis tab', async () => {
     render(<App />)
-    await userEvent.click(screen.getByRole('button', { name: 'Schema' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Schema' }))
     await screen.findByRole('combobox', { name: 'Select database schema' })
-    await userEvent.click(screen.getByRole('button', { name: 'Analysis' }))
+    await userEvent.click(screen.getByRole('tab', { name: 'Analysis' }))
     const picker = await screen.findByRole('combobox', { name: 'Filter by database' })
     expect(picker).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'All databases' })).toBeInTheDocument()
     expect(screen.queryByRole('combobox', { name: 'Select database schema' })).not.toBeInTheDocument()
+  })
+})
+
+describe('App keyboard navigation', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    installMatchMedia()
+    vi.mocked(fetchMeta).mockResolvedValue({
+      version: '1', timestamp: '', cluster_version: '', cluster_id: '',
+      organization: '', virtual_cluster: false,
+    })
+    vi.mocked(fetchQueries).mockResolvedValue([])
+    vi.mocked(fetchDatabases).mockResolvedValue(['movr'])
+    vi.mocked(fetchSchema).mockResolvedValue({ databases: { movr: 'CREATE TABLE ...' } })
+  })
+
+  it('exposes the tabs as a tablist controlling a labelled tabpanel', async () => {
+    render(<App />)
+    await screen.findByText('analysis')
+    const tabs = screen.getAllByRole('tab')
+    expect(tabs.map(t => t.textContent)).toEqual(['Analysis', 'SQL', 'Schema'])
+    expect(screen.getByRole('tablist')).toContainElement(tabs[0])
+    expect(tabs[0]).toHaveAttribute('aria-selected', 'true')
+    expect(tabs[1]).toHaveAttribute('aria-selected', 'false')
+    expect(tabs[0]).toHaveAttribute('tabindex', '0')
+    expect(tabs[1]).toHaveAttribute('tabindex', '-1')
+    const panel = screen.getByRole('tabpanel', { name: 'Analysis' })
+    expect(panel).toHaveTextContent('analysis')
+    expect(tabs[0]).toHaveAttribute('aria-controls', panel.id)
+  })
+
+  it('moves between tabs with arrow keys, wrapping, and with Home/End', async () => {
+    render(<App />)
+    await screen.findByText('analysis')
+    screen.getByRole('tab', { name: 'Analysis' }).focus()
+    await userEvent.keyboard('{ArrowRight}')
+    expect(screen.getByRole('tab', { name: 'SQL' })).toHaveFocus()
+    expect(screen.getByText('sql')).toBeInTheDocument()
+    await userEvent.keyboard('{ArrowRight}{ArrowRight}')
+    expect(screen.getByRole('tab', { name: 'Analysis' })).toHaveFocus()
+    await userEvent.keyboard('{ArrowLeft}')
+    expect(screen.getByRole('tab', { name: 'Schema' })).toHaveFocus()
+    expect(screen.getByText('schema')).toBeInTheDocument()
+    await userEvent.keyboard('{Home}')
+    expect(screen.getByRole('tab', { name: 'Analysis' })).toHaveFocus()
+    await userEvent.keyboard('{End}')
+    expect(screen.getByRole('tab', { name: 'Schema' })).toHaveFocus()
+  })
+
+  it('switches tabs with the digit keys from anywhere on the page', async () => {
+    render(<App />)
+    await screen.findByText('analysis')
+    await userEvent.keyboard('2')
+    expect(screen.getByText('sql')).toBeInTheDocument()
+    await userEvent.keyboard('3')
+    expect(screen.getByText('schema')).toBeInTheDocument()
+    await userEvent.keyboard('1')
+    expect(screen.getByText('analysis')).toBeInTheDocument()
+  })
+
+  it('moves focus to the tab selected by a digit key so the arrows work next', async () => {
+    render(<App />)
+    await screen.findByText('analysis')
+    // Fresh page: nothing is focused, the digit is handled page-wide.
+    expect(document.body).toHaveFocus()
+    await userEvent.keyboard('2')
+    expect(screen.getByRole('tab', { name: 'SQL' })).toHaveFocus()
+    await userEvent.keyboard('{ArrowRight}')
+    expect(screen.getByText('schema')).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Schema' })).toHaveFocus()
+  })
+
+  it('ignores digit keys while a select has focus', async () => {
+    render(<App />)
+    const picker = await screen.findByRole('combobox', { name: 'Filter by database' })
+    picker.focus()
+    await userEvent.keyboard('2')
+    expect(screen.getByText('analysis')).toBeInTheDocument()
+  })
+
+  it('opens the shortcuts dialog with ? and closes it with Escape', async () => {
+    render(<App />)
+    await screen.findByText('analysis')
+    await userEvent.keyboard('?')
+    expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument()
+    // Digits must not switch tabs behind the modal.
+    await userEvent.keyboard('2')
+    expect(screen.getByText('analysis')).toBeInTheDocument()
+    await userEvent.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+  })
+
+  it('opens the shortcuts dialog from the meta bar button', async () => {
+    render(<App />)
+    await screen.findByText('analysis')
+    await userEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }))
+    expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument()
   })
 })

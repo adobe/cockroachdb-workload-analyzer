@@ -26,6 +26,14 @@ const queries: QueryDef[] = [
     sql: 'SELECT cpu FROM stmt_stats LIMIT 25',
     db_filter_expr: "json_extract_string(metadata, '$.db')",
   },
+  {
+    id: 'stmt-top-latency',
+    category: 'Statements',
+    name: 'Top Latency',
+    description: 'Top latency',
+    sql: 'SELECT latency FROM stmt_stats LIMIT 25',
+    db_filter_expr: "json_extract_string(metadata, '$.db')",
+  },
 ]
 
 const mockEditor = {
@@ -70,6 +78,21 @@ describe('SqlTab sidebar', () => {
     render(<SqlTab queries={queries} theme="dark" />)
     await userEvent.click(screen.getByText('Top CPU Consumers'))
     expect(mockEditor.setValue).not.toHaveBeenCalled()
+  })
+
+  // Stepping through the list with the keyboard must only move the highlight;
+  // appending happens on Enter. Otherwise every keystroke would grow the editor.
+  it('appends on Enter but not while moving the keyboard cursor', async () => {
+    render(<SqlTab queries={queries} theme="dark" />)
+    screen.getByRole('button', { name: 'Top CPU Consumers' }).focus()
+    await userEvent.keyboard('{ArrowDown}')
+    expect(screen.getByRole('button', { name: 'Top Latency' })).toHaveFocus()
+    expect(mockEditor.setValue).not.toHaveBeenCalled()
+    await userEvent.keyboard('{Enter}')
+    expect(mockEditor.setValue).toHaveBeenCalledTimes(1)
+    expect(mockEditor.setValue).toHaveBeenCalledWith(
+      'SELECT 0\n\n-- Top Latency\nSELECT latency FROM stmt_stats LIMIT 25'
+    )
   })
 
   it('passes the registered Monaco theme for the active UI theme', () => {

@@ -66,6 +66,7 @@ export function AnalysisTab({ queries, selectedDb, onFingerprintClick }: Props) 
         queries={queries}
         activeId={activeId}
         onSelect={setActiveId}
+        activation="automatic"
       />
       <div className="analysis-main">
         {active && (

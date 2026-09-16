@@ -13,6 +13,7 @@ governing permissions and limitations under the License.
 /* Layout shell */
 .app { display: flex; flex-direction: column; height: 100vh; }
 .tab-content { flex: 1; overflow: hidden; display: flex; }
+.tab-panel { flex: 1; overflow: hidden; display: flex; min-width: 0; }
 
 /* Meta bar */
 .meta-bar {
@@ -33,11 +34,22 @@ governing permissions and limitations under the License.
 }
 .db-picker { margin-left: auto; align-self: center; }
 
+/* Keyboard shortcuts button (meta bar) */
+.shortcuts-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: none; border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  color: var(--text-secondary); cursor: pointer; padding: var(--space-1) var(--space-2);
+  font-size: var(--text-sm); line-height: 1;
+}
+.shortcuts-btn:hover { color: var(--text-primary); background: var(--bg-raised); }
+.shortcuts-btn kbd { font-family: var(--font-mono); }
+
 /* Tabs */
 .tab-bar {
   display: flex; gap: 0; padding: 0 var(--space-3);
   background: var(--bg-surface); border-bottom: 1px solid var(--border-strong);
 }
+.tab-list { display: flex; gap: 0; }
 .tab-btn {
   background: none; border: none; border-bottom: 2px solid transparent;
   color: var(--text-secondary); padding: var(--space-2) var(--space-4);
@@ -210,3 +222,32 @@ governing permissions and limitations under the License.
 .drawer-stmt-stats dt { color: var(--text-secondary); }
 .drawer-stmt-stats dd { margin: 0; color: var(--text-primary); font-family: var(--font-mono); text-align: right; }
 .index-unfiltered-note { color: var(--warning); font-size: var(--text-sm); margin-top: var(--space-1); }
+
+/* Keyboard shortcuts dialog: shares the drawer's backdrop, header and close
+   button; centered instead of docked to the right. */
+.shortcuts-dialog {
+  position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(560px, calc(100vw - 2 * var(--space-4))); max-height: calc(100vh - 2 * var(--space-6));
+  background: var(--bg-surface); border: 1px solid var(--border-strong); border-radius: var(--radius-md);
+  z-index: 11; display: flex; flex-direction: column;
+}
+.shortcuts-title { font-size: var(--text-lg); font-weight: 600; color: var(--text-primary); }
+.shortcuts-body {
+  overflow-y: auto; padding: var(--space-2) var(--space-4) var(--space-4);
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: var(--space-3) var(--space-6);
+}
+.shortcuts-group-title {
+  font-size: var(--text-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text-muted); margin: var(--space-2) 0 var(--space-1);
+}
+.shortcuts-list { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); font-size: var(--text-sm); align-items: baseline; }
+.shortcuts-list > div { display: contents; }
+.shortcuts-list dt { white-space: nowrap; display: flex; align-items: center; gap: var(--space-1); }
+.shortcuts-list dd { margin: 0; color: var(--text-secondary); }
+.shortcuts-list kbd, .shortcuts-btn kbd {
+  display: inline-block; min-width: 1.6em; padding: 0 var(--space-1); text-align: center;
+  font-size: var(--text-xs); line-height: 1.6; color: var(--text-primary);
+  background: var(--bg-raised); border: 1px solid var(--border-strong); border-bottom-width: 2px;
+  border-radius: var(--radius-sm);
+}
+.shortcuts-sep { color: var(--text-muted); font-size: var(--text-xs); }
