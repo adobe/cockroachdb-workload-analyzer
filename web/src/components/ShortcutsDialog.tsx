@@ -8,73 +8,22 @@
 // OF ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 
-import { Fragment, useEffect, useRef } from 'react'
+import { Fragment, useRef } from 'react'
 import { SHORTCUT_GROUPS } from '../shortcuts'
+import { useModal } from '../hooks/useModal'
 
 interface Props {
   open: boolean
   onClose: () => void
 }
 
-const FOCUSABLE = 'a[href], button:not([disabled]), select:not([disabled]), input:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
-
-// Keeps Tab inside the dialog: wraps at either end, and pulls focus back to
-// the first (or, on Shift+Tab, last) focusable when focus is outside it.
-function trapTab(e: KeyboardEvent, dialog: HTMLElement | null) {
-  if (!dialog) return
-  const focusable = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE)]
-  if (focusable.length === 0) return
-  const first = focusable[0]
-  const last = focusable[focusable.length - 1]
-  const active = document.activeElement
-  const inside = active instanceof HTMLElement && dialog.contains(active)
-  if (e.shiftKey && (!inside || active === first)) {
-    e.preventDefault()
-    last.focus()
-  } else if (!e.shiftKey && (!inside || active === last)) {
-    e.preventDefault()
-    first.focus()
-  }
-}
-
-// A modal listing every keyboard shortcut. Follows the same focus contract as
-// the fingerprint drawer: focus moves to the close button on open and returns
-// to the trigger on close; Escape, the close button and the backdrop all close
-// it; Tab cycles inside the dialog while it is open.
+// A modal listing every keyboard shortcut. Shares the fingerprint drawer's
+// focus contract (useModal); Escape, the close button and the backdrop all
+// close it, and Tab cycles inside the dialog while it is open.
 export function ShortcutsDialog({ open, onClose }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
-  const prevFocusRef = useRef<HTMLElement | null>(null)
-
-  // Read through a ref so the document listener binds once per open rather
-  // than on every render of a parent passing an inline onClose.
-  const onCloseRef = useRef(onClose)
-  useEffect(() => {
-    onCloseRef.current = onClose
-  })
-
-  // Escape and the Tab trap are handled at the document level: clicking
-  // non-focusable text in the dialog drops focus to body, where a keydown
-  // never reaches a React handler on the dialog itself.
-  useEffect(() => {
-    if (!open) return
-    function handler(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        onCloseRef.current()
-      } else if (e.key === 'Tab') {
-        trapTab(e, dialogRef.current)
-      }
-    }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [open])
-
-  useEffect(() => {
-    if (!open) return
-    prevFocusRef.current = document.activeElement as HTMLElement | null
-    closeRef.current?.focus()
-    return () => prevFocusRef.current?.focus?.()
-  }, [open])
+  useModal({ openKey: open, onClose, closeRef, trapRef: dialogRef })
 
   if (!open) return null
 

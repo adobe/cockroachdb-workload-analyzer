@@ -11,6 +11,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useFingerprintDetail, type StmtDetail } from '../hooks/useFingerprintDetail'
 import { useDrawerWidth } from '../hooks/useDrawerWidth'
+import { useModal } from '../hooks/useModal'
 import { drawerToText, fmtNum, fmtSec } from '../drawerText'
 
 interface Props {
@@ -40,29 +41,11 @@ export function FingerprintDrawer({ fingerprint, onClose }: Props) {
   const [copiedFor, setCopiedFor] = useState<string | null>(null)
   const copied = copiedFor === fingerprint
   const closeRef = useRef<HTMLButtonElement>(null)
-  const prevFocusRef = useRef<HTMLElement | null>(null)
+  useModal({ openKey: fingerprint, onClose, closeRef })
 
   useEffect(() => {
     if (fingerprint) lookup(fingerprint)
   }, [fingerprint, lookup])
-
-  useEffect(() => {
-    if (!fingerprint) return
-    function handler(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose()
-    }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [fingerprint, onClose])
-
-  // Focus management: when the drawer opens, remember what was focused, move
-  // focus into the drawer, and restore it to the trigger when the drawer closes.
-  useEffect(() => {
-    if (!fingerprint) return
-    prevFocusRef.current = document.activeElement as HTMLElement | null
-    closeRef.current?.focus()
-    return () => prevFocusRef.current?.focus?.()
-  }, [fingerprint])
 
   if (!fingerprint) return null
 
