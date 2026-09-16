@@ -1,0 +1,13 @@
+{
+  "name": "workload-analyzer-demo",
+  "private": true,
+  "description": "Records the README demo video of the workload-analyzer UI",
+  "scripts": {
+    "record": "node record.js",
+    "encode": "sh encode.sh",
+    "demo": "npm run record && npm run encode"
+  },
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

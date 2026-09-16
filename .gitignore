@@ -9,3 +9,7 @@ tmp/
 # Local analysis scratch — may contain production data; never commit
 *investigation*.md
 scripts/
+
+# Demo recording tooling
+tools/demo/node_modules
+tools/demo/out

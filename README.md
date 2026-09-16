@@ -4,6 +4,10 @@ An interactive offline analysis tool for [CockroachDB workload-exporter](https:/
 
 Point it at a zip file, and a browser opens with 26 preloaded diagnostic queries and a free SQL editor backed by [DuckDB](https://duckdb.org/); no database server, no cloud, no data leaves your machine.
 
+![Tour of the analyzer: preloaded queries, database filter, sorting, fingerprint drawer, SQL editor, schema view, keyboard shortcuts and dark theme](https://raw.githubusercontent.com/adobe/cockroachdb-workload-analyzer/media/demo.gif)
+
+<sup>[Watch as MP4](https://raw.githubusercontent.com/adobe/cockroachdb-workload-analyzer/media/demo.mp4) · recorded from the `movr` sample export with [`tools/demo`](tools/demo/README.md)</sup>
+
 ## Install
 
 Grab a prebuilt binary from the [latest release](https://github.com/adobe/cockroachdb-workload-analyzer/releases/latest) (macOS arm64, Linux x86-64), verify the checksum, and run it:
