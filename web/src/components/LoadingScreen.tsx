@@ -17,6 +17,9 @@ interface Props {
 export function LoadingScreen({ status }: Props) {
   const pct = Math.round(status.progress * 100)
   const lastLoaded = status.tables.filter(t => t.loaded).at(-1)
+  // "not in export" is the loader's marker for a table the export simply
+  // lacks; only real load failures are worth showing here.
+  const failed = status.tables.filter(t => t.error && t.error !== 'not in export')
 
   return (
     <div className="loading-screen">
@@ -25,9 +28,9 @@ export function LoadingScreen({ status }: Props) {
         <div className="progress-fill" style={{ width: `${pct}%` }} />
       </div>
       <p className="progress-label">{pct}%{lastLoaded ? ` — ${lastLoaded.name}` : ''}</p>
-      {status.tables.some(t => t.error && t.error !== 'not in export') && (
+      {failed.length > 0 && (
         <ul className="load-errors">
-          {status.tables.filter(t => t.error && t.error !== 'not in export').map(t => (
+          {failed.map(t => (
             <li key={t.name}>{t.name}: {t.error}</li>
           ))}
         </ul>
