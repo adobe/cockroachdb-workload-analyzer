@@ -8,7 +8,7 @@
 // OF ANY KIND, either express or implied. See the License for the specific language
 // governing permissions and limitations under the License.
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { fetchStatus } from '../api'
 import type { StatusResult } from '../api'
 
@@ -20,10 +20,10 @@ export function useStatus() {
     progress: 0,
     tables: [],
   })
-  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
     let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
 
     async function poll() {
       try {
@@ -31,12 +31,12 @@ export function useStatus() {
         if (!cancelled) {
           setStatus(s)
           if (s.state !== 'ready') {
-            timerRef.current = setTimeout(poll, POLL_INTERVAL_MS)
+            timer = setTimeout(poll, POLL_INTERVAL_MS)
           }
         }
       } catch {
         if (!cancelled) {
-          timerRef.current = setTimeout(poll, POLL_INTERVAL_MS * 4)
+          timer = setTimeout(poll, POLL_INTERVAL_MS * 4)
         }
       }
     }
@@ -44,7 +44,7 @@ export function useStatus() {
     poll()
     return () => {
       cancelled = true
-      clearTimeout(timerRef.current)
+      clearTimeout(timer)
     }
   }, [])
 
