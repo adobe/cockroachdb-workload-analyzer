@@ -58,3 +58,30 @@ describe('AnalysisTab', () => {
     expect(runCatalogQuery).toHaveBeenCalledWith('stmt-top-latency', '')
   })
 })
+
+describe('AnalysisTab database picker', () => {
+  const ok = { columns: [], rows: [], duration_ms: 0 }
+
+  it('does not re-run a non-filterable query when the picker changes', async () => {
+    vi.mocked(runCatalogQuery).mockReset().mockResolvedValue(ok)
+    const unfiltered = [{ ...queries[0], db_filter_expr: '' }]
+    const { rerender } = render(<AnalysisTab queries={unfiltered} selectedDb="" />)
+    await userEvent.click(screen.getByRole('button', { name: 'Top CPU Consumers' }))
+    expect(runCatalogQuery).toHaveBeenCalledTimes(1)
+    expect(runCatalogQuery).toHaveBeenCalledWith('stmt-top-cpu', '')
+
+    rerender(<AnalysisTab queries={unfiltered} selectedDb="movr" />)
+    expect(runCatalogQuery).toHaveBeenCalledTimes(1)
+  })
+
+  it('re-runs a filterable query against the newly selected database', async () => {
+    vi.mocked(runCatalogQuery).mockReset().mockResolvedValue(ok)
+    const { rerender } = render(<AnalysisTab queries={queries} selectedDb="" />)
+    await userEvent.click(screen.getByRole('button', { name: 'Top CPU Consumers' }))
+    expect(runCatalogQuery).toHaveBeenCalledTimes(1)
+
+    rerender(<AnalysisTab queries={queries} selectedDb="movr" />)
+    expect(runCatalogQuery).toHaveBeenCalledTimes(2)
+    expect(runCatalogQuery).toHaveBeenLastCalledWith('stmt-top-cpu', 'movr')
+  })
+})
