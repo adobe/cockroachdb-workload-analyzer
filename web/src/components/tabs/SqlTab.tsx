@@ -18,6 +18,7 @@ import { editorFontOptions, ensureMonacoTheme } from '../../monacoThemes'
 import { runModifierLabel } from '../../shortcuts'
 import type { QueryDef } from '../../api'
 import type { ThemeName } from '../../theme'
+import { QUERY_SIDEBAR_ID } from '../../tabIds'
 
 // The slice of the Monaco editor this tab drives. A type-only import, so the
 // jsdom tests that mock MonacoEditor never load monaco itself.
@@ -40,10 +41,12 @@ function editorOptions(): monaco.editor.IStandaloneEditorConstructionOptions {
 interface Props {
   queries: QueryDef[]
   theme: ThemeName
+  // Hides the query list to give the editor and results the full width.
+  sidebarHidden?: boolean
   onFingerprintClick?: (id: string) => void
 }
 
-export function SqlTab({ queries, theme, onFingerprintClick }: Props) {
+export function SqlTab({ queries, theme, sidebarHidden = false, onFingerprintClick }: Props) {
   const { result, loading, run } = useRun()
   // Lazily initialized so the first mount reads fresh tokens (data-theme is
   // already set by then, via the bootstrap script or useTheme's layout
@@ -101,7 +104,7 @@ export function SqlTab({ queries, theme, onFingerprintClick }: Props) {
 
   return (
     <div className="sql-tab">
-      <div className="sql-sidebar">
+      <div className="sql-sidebar" id={QUERY_SIDEBAR_ID} hidden={sidebarHidden}>
         <QueryList queries={queries} activeId={null} onSelect={handleInsert} />
       </div>
       <div className="sql-editor-column">

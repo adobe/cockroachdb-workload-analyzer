@@ -21,6 +21,9 @@ interface Props {
   // selecting just shows results). "manual": moving only highlights; Enter or
   // Space selects (SQL, where selecting appends to the editor).
   activation?: 'automatic' | 'manual'
+  // Forwarded to the nav, for tabs where the list is the sidebar itself.
+  id?: string
+  hidden?: boolean
 }
 
 // Keys handled while focus is inside the list. ArrowUp/ArrowDown and Home/End
@@ -35,7 +38,7 @@ function stepFor(key: string, index: number, last: number): number | null {
   }
 }
 
-export function QueryList({ queries, activeId, onSelect, activation = 'manual' }: Props) {
+export function QueryList({ queries, activeId, onSelect, activation = 'manual', id, hidden }: Props) {
   // Grouped by category in first-seen order. The list renders in this grouped
   // order, so keyboard order is the grouped order, not the catalog order.
   const groups = new Map<string, QueryDef[]>()
@@ -99,7 +102,7 @@ export function QueryList({ queries, activeId, onSelect, activation = 'manual' }
   }, [])
 
   return (
-    <nav className="query-list" aria-label="Queries" onKeyDown={handleKeyDown}>
+    <nav className="query-list" id={id} hidden={hidden} aria-label="Queries" onKeyDown={handleKeyDown}>
       {[...groups].map(([cat, items]) => (
         <div key={cat} className="query-category">
           <div className="query-category-label">{cat}</div>

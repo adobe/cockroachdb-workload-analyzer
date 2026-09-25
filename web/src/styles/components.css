@@ -57,6 +57,15 @@ governing permissions and limitations under the License.
 }
 .tab-btn:hover { color: var(--text-primary); background: var(--bg-raised); }
 .tab-btn.active { color: var(--text-primary); font-weight: 600; border-bottom-color: var(--accent); }
+/* Query list toggle, at the start of the tab bar above the sidebar it hides. */
+.sidebar-toggle {
+  display: inline-flex; align-items: center; justify-content: center; align-self: center;
+  margin-right: var(--space-2); padding: var(--space-1);
+  background: none; border: none; border-radius: var(--radius-sm);
+  color: var(--text-secondary); cursor: pointer;
+}
+.sidebar-toggle:hover:not(:disabled) { color: var(--text-primary); background: var(--bg-raised); }
+.sidebar-toggle:disabled { opacity: 0.4; cursor: default; }
 
 /* Banners */
 .missing-banner, .error-banner {

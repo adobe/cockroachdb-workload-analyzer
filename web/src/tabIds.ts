@@ -27,3 +27,13 @@ export function tabId(id: string) {
 export function tabPanelId(id: string) {
   return `tabpanel-${id}`
 }
+
+// The query list sidebar on the Analysis and SQL tabs. Only one of those tabs
+// is mounted at a time, so the id stays unique; the tab bar's hide/show
+// button points at it with aria-controls.
+export const QUERY_SIDEBAR_ID = 'query-sidebar'
+
+// The tabs that have a query list sidebar to hide.
+export function hasQuerySidebar(id: Tab) {
+  return id === 'analysis' || id === 'sql'
+}

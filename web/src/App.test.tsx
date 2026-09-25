@@ -31,8 +31,17 @@ vi.mock('./hooks/useStatus', () => ({
 }))
 
 // Isolate App: stub the tabs so their own fetches don't interfere.
-vi.mock('./components/tabs/AnalysisTab', () => ({ AnalysisTab: () => <div>analysis</div> }))
-vi.mock('./components/tabs/SqlTab', () => ({ SqlTab: () => <div>sql</div> }))
+// The stubs expose the sidebarHidden prop so the toggle's wiring is visible.
+vi.mock('./components/tabs/AnalysisTab', () => ({
+  AnalysisTab: ({ sidebarHidden }: { sidebarHidden?: boolean }) => (
+    <div data-sidebar-hidden={String(!!sidebarHidden)}>analysis</div>
+  ),
+}))
+vi.mock('./components/tabs/SqlTab', () => ({
+  SqlTab: ({ sidebarHidden }: { sidebarHidden?: boolean }) => (
+    <div data-sidebar-hidden={String(!!sidebarHidden)}>sql</div>
+  ),
+}))
 vi.mock('./components/tabs/SchemaTab', () => ({ SchemaTab: () => <div>schema</div> }))
 
 describe('App fetch error surfacing', () => {
@@ -222,5 +231,64 @@ describe('App keyboard navigation', () => {
     await screen.findByText('analysis')
     await userEvent.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }))
     expect(screen.getByRole('dialog', { name: 'Keyboard shortcuts' })).toBeInTheDocument()
+  })
+})
+
+describe('App query list toggle', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    localStorage.clear()
+    installMatchMedia()
+    vi.mocked(fetchMeta).mockResolvedValue({
+      version: '1', timestamp: '', cluster_version: '', cluster_id: '',
+      organization: '', virtual_cluster: false,
+    })
+    vi.mocked(fetchQueries).mockResolvedValue([])
+    vi.mocked(fetchDatabases).mockResolvedValue([])
+    vi.mocked(fetchSchema).mockResolvedValue({ databases: { movr: 'CREATE TABLE ...' } })
+  })
+
+  it('hides and shows the query list from the tab bar button, on Analysis and SQL alike', async () => {
+    render(<App />)
+    const analysis = await screen.findByText('analysis')
+    expect(analysis).toHaveAttribute('data-sidebar-hidden', 'false')
+    await userEvent.click(screen.getByRole('button', { name: 'Hide query list' }))
+    expect(analysis).toHaveAttribute('data-sidebar-hidden', 'true')
+    const toggle = screen.getByRole('button', { name: 'Show query list' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    expect(toggle).toHaveAttribute('aria-controls', 'query-sidebar')
+    // The choice carries over to the SQL tab.
+    await userEvent.click(screen.getByRole('tab', { name: 'SQL' }))
+    expect(screen.getByText('sql')).toHaveAttribute('data-sidebar-hidden', 'true')
+    await userEvent.click(screen.getByRole('button', { name: 'Show query list' }))
+    expect(screen.getByText('sql')).toHaveAttribute('data-sidebar-hidden', 'false')
+    expect(screen.getByRole('button', { name: 'Hide query list' })).toHaveAttribute('aria-expanded', 'true')
+  })
+
+  it('toggles the query list with the b key', async () => {
+    render(<App />)
+    const analysis = await screen.findByText('analysis')
+    await userEvent.keyboard('b')
+    expect(analysis).toHaveAttribute('data-sidebar-hidden', 'true')
+    await userEvent.keyboard('b')
+    expect(analysis).toHaveAttribute('data-sidebar-hidden', 'false')
+  })
+
+  it('remembers a hidden query list across reloads', async () => {
+    const { unmount } = render(<App />)
+    await screen.findByText('analysis')
+    await userEvent.click(screen.getByRole('button', { name: 'Hide query list' }))
+    unmount()
+    render(<App />)
+    expect(await screen.findByText('analysis')).toHaveAttribute('data-sidebar-hidden', 'true')
+  })
+
+  it('disables the toggle on the Schema tab, which has no query list', async () => {
+    render(<App />)
+    await screen.findByText('analysis')
+    await userEvent.click(screen.getByRole('tab', { name: 'Schema' }))
+    const toggle = screen.getByRole('button', { name: 'Hide query list' })
+    expect(toggle).toBeDisabled()
+    expect(toggle).not.toHaveAttribute('aria-expanded')
   })
 })

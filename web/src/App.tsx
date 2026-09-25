@@ -20,9 +20,11 @@ import { ErrorBanner } from './components/ErrorBanner'
 import { useStatus } from './hooks/useStatus'
 import { useSchema } from './hooks/useSchema'
 import { useTheme } from './hooks/useTheme'
+import { useSidebarHidden } from './hooks/useSidebarHidden'
 import { ThemeSelect } from './components/ThemeSelect'
 import { TabBar } from './components/TabBar'
-import { TABS, tabId, tabPanelId } from './tabIds'
+import { SidebarToggle } from './components/SidebarToggle'
+import { TABS, hasQuerySidebar, tabId, tabPanelId } from './tabIds'
 import type { Tab } from './tabIds'
 import { ShortcutsDialog } from './components/ShortcutsDialog'
 import { useGlobalShortcuts } from './hooks/useGlobalShortcuts'
@@ -35,6 +37,7 @@ export default function App() {
   const { theme, preference, setPreference } = useTheme()
   const [tab, setTab] = useState<Tab>('analysis')
   const [shortcutsOpen, setShortcutsOpen] = useState(false)
+  const sidebar = useSidebarHidden()
   useGlobalShortcuts({
     onTab: i => {
       if (!TABS[i]) return
@@ -44,6 +47,7 @@ export default function App() {
       document.getElementById(tabId(TABS[i].id))?.focus()
     },
     onHelp: () => setShortcutsOpen(true),
+    onToggleSidebar: sidebar.toggle,
   })
   const [meta, setMeta] = useState<MetaResult | null>(null)
   const [queries, setQueries] = useState<QueryDef[]>([])
@@ -122,7 +126,14 @@ export default function App() {
       </MetaBar>
       <ErrorBanner message={loadError} onDismiss={dismissLoadError} />
       <MissingTablesBanner tables={status.tables} />
-      <TabBar tabs={TABS} active={tab} onChange={setTab}>
+      <TabBar
+        tabs={TABS}
+        active={tab}
+        onChange={setTab}
+        start={
+          <SidebarToggle hidden={sidebar.hidden} onToggle={sidebar.toggle} available={hasQuerySidebar(tab)} />
+        }
+      >
         {tab === 'schema' ? (
           schema.databases.length > 0 && (
             <DatabasePicker
@@ -147,10 +158,18 @@ export default function App() {
             <AnalysisTab
               queries={queries}
               selectedDb={selectedDb}
+              sidebarHidden={sidebar.hidden}
               onFingerprintClick={setClickedFingerprint}
             />
           )}
-          {tab === 'sql' && <SqlTab queries={queries} theme={theme} onFingerprintClick={setClickedFingerprint} />}
+          {tab === 'sql' && (
+            <SqlTab
+              queries={queries}
+              theme={theme}
+              sidebarHidden={sidebar.hidden}
+              onFingerprintClick={setClickedFingerprint}
+            />
+          )}
           {tab === 'schema' && (
             <SchemaTab ddl={schema.ddl} error={schema.error} onDismissError={schema.dismissError} />
           )}

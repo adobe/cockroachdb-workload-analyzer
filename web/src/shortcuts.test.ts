@@ -67,7 +67,7 @@ describe('SHORTCUT_GROUPS', () => {
   it('documents every shortcut the app binds, grouped with a title', () => {
     const all = SHORTCUT_GROUPS.flatMap(g => g.shortcuts)
     const keys = all.map(s => s.keys.join(' '))
-    expect(keys).toEqual(expect.arrayContaining(['?', '1', '2', '3', 'j', 'k', 'Esc']))
+    expect(keys).toEqual(expect.arrayContaining(['?', '1', '2', '3', 'j', 'k', 'b', 'Esc']))
     for (const group of SHORTCUT_GROUPS) {
       expect(group.title).toBeTruthy()
       expect(group.shortcuts.length).toBeGreaterThan(0)

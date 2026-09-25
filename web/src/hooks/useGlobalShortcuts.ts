@@ -15,10 +15,11 @@ interface Handlers {
   // Called with the 0-based tab index for the digit keys 1..9.
   onTab: (index: number) => void
   onHelp: () => void
+  onToggleSidebar: () => void
 }
 
 // Page-wide single-key shortcuts: digits switch tabs, "?" opens the help
-// dialog. Ignored while typing and while a modal is open, and never with a
+// dialog, "b" hides or shows the query list sidebar. Ignored while typing and while a modal is open, and never with a
 // modifier held (Ctrl+1 is the browser's own tab switch). The query list's
 // j/k shortcut lives in QueryList so the list logic stays in one place.
 export function useGlobalShortcuts(handlers: Handlers) {
@@ -36,6 +37,9 @@ export function useGlobalShortcuts(handlers: Handlers) {
       if (e.key === '?') {
         e.preventDefault()
         ref.current.onHelp()
+      } else if (e.key === 'b') {
+        e.preventDefault()
+        ref.current.onToggleSidebar()
       } else if (/^[1-9]$/.test(e.key)) {
         e.preventDefault()
         ref.current.onTab(Number(e.key) - 1)

@@ -21,6 +21,8 @@ interface Props<T extends string> {
   tabs: readonly TabDef<T>[]
   active: T
   onChange: (id: T) => void
+  // Rendered before the tabs, inside the bar (the query list toggle).
+  start?: ReactNode
   // Rendered after the tabs, inside the bar (the database picker).
   children?: ReactNode
 }
@@ -28,7 +30,7 @@ interface Props<T extends string> {
 // WAI-ARIA tabs with automatic activation: a single tab stop (the selected
 // tab), Left/Right to move with wrap-around, Home/End to jump. Moving focus
 // selects, since switching tabs is cheap and non-destructive.
-export function TabBar<T extends string>({ tabs, active, onChange, children }: Props<T>) {
+export function TabBar<T extends string>({ tabs, active, onChange, start, children }: Props<T>) {
   const refs = useRef(new Map<T, HTMLButtonElement>())
 
   function handleKeyDown(e: ReactKeyboardEvent<HTMLElement>) {
@@ -51,6 +53,7 @@ export function TabBar<T extends string>({ tabs, active, onChange, children }: P
 
   return (
     <nav className="tab-bar">
+      {start}
       <div role="tablist" className="tab-list" onKeyDown={handleKeyDown}>
         {tabs.map(t => (
           <button

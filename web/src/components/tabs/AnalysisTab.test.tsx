@@ -84,4 +84,12 @@ describe('AnalysisTab database picker', () => {
     expect(runCatalogQuery).toHaveBeenCalledTimes(2)
     expect(runCatalogQuery).toHaveBeenLastCalledWith('stmt-top-cpu', 'movr')
   })
+
+  it('hides the query list but keeps j/k stepping through the queries', async () => {
+    vi.mocked(runCatalogQuery).mockResolvedValue({ columns: [], rows: [], duration_ms: 0 })
+    render(<AnalysisTab queries={queries} selectedDb="" sidebarHidden />)
+    expect(screen.queryByRole('navigation', { name: 'Queries' })).not.toBeInTheDocument()
+    await userEvent.keyboard('j')
+    expect(screen.getByRole('heading', { name: 'Top CPU Consumers' })).toBeInTheDocument()
+  })
 })

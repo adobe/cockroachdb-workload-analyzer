@@ -13,10 +13,14 @@ import type { QueryDef, RunResult } from '../../api'
 import { runCatalogQuery, runFailure } from '../../api'
 import { QueryList } from '../QueryList'
 import { ResultsTable } from '../ResultsTable'
+import { QUERY_SIDEBAR_ID } from '../../tabIds'
 
 interface Props {
   queries: QueryDef[]
   selectedDb: string
+  // Hides the query list to give the results the full width. The list stays
+  // mounted, so j/k keep stepping through the queries while it is hidden.
+  sidebarHidden?: boolean
   onFingerprintClick?: (id: string) => void
 }
 
@@ -50,7 +54,7 @@ function QueryResult({
   return <ResultsTable result={result} loading={loading} onFingerprintClick={onFingerprintClick} />
 }
 
-export function AnalysisTab({ queries, selectedDb, onFingerprintClick }: Props) {
+export function AnalysisTab({ queries, selectedDb, sidebarHidden = false, onFingerprintClick }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null)
 
   const active = queries.find(q => q.id === activeId)
@@ -61,6 +65,8 @@ export function AnalysisTab({ queries, selectedDb, onFingerprintClick }: Props) 
   return (
     <div className="analysis-tab">
       <QueryList
+        id={QUERY_SIDEBAR_ID}
+        hidden={sidebarHidden}
         queries={queries}
         activeId={activeId}
         onSelect={setActiveId}

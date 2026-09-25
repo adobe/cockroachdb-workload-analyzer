@@ -76,6 +76,7 @@ export const SHORTCUT_GROUPS: ShortcutGroup[] = [
       { keys: ['↑', '↓'], description: 'Previous or next query, while the list has focus' },
       { keys: ['Home', 'End'], description: 'First or last query, while the list has focus' },
       { keys: ['↵'], description: 'Open the highlighted query (SQL: insert it into the editor)' },
+      { keys: ['b'], description: 'Hide or show the query list, for wider results' },
     ],
   },
   {

@@ -100,4 +100,11 @@ describe('SqlTab sidebar', () => {
     const props = vi.mocked(MonacoEditor).mock.calls.at(-1)?.[0]
     expect(props).toEqual(expect.objectContaining({ theme: 'wa-light-hc' }))
   })
+
+  it('hides the query list when sidebarHidden is set', () => {
+    const { rerender } = render(<SqlTab queries={queries} theme="dark" />)
+    expect(screen.getByRole('navigation', { name: 'Queries' })).toBeInTheDocument()
+    rerender(<SqlTab queries={queries} theme="dark" sidebarHidden />)
+    expect(screen.queryByRole('navigation', { name: 'Queries' })).not.toBeInTheDocument()
+  })
 })
